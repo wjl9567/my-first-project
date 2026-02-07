@@ -1,0 +1,106 @@
+/* 医院设备扫码登记 - API 文档青绿色主题，与 H5/管理后台风格一致 */
+:root {
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  --teal-50: #f0fdfa;
+  --teal-100: #ccfbf1;
+  --teal-800: #115e59;
+}
+
+.swagger-ui .topbar {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  padding: 12px 0;
+}
+
+.swagger-ui .topbar .link {
+  color: #fff;
+  font-weight: 600;
+}
+
+.swagger-ui .info .title {
+  color: #0f766e;
+  font-size: 1.75rem;
+}
+
+.swagger-ui .info .description {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.swagger-ui .opblock.opblock-get {
+  border-color: var(--teal-600);
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: var(--teal-600);
+}
+
+.swagger-ui .opblock.opblock-post {
+  border-color: var(--teal-700);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: var(--teal-700);
+}
+
+.swagger-ui .btn.execute {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-color: var(--teal-700);
+}
+
+.swagger-ui .btn.execute:hover {
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+}
+
+.swagger-ui .auth-container .authorize {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-color: var(--teal-700);
+}
+
+.swagger-ui .auth-container .authorize:hover {
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+}
+
+.swagger-ui .filter-container .filter .operation-filter-input {
+  border-color: #e2e8f0;
+  border-radius: 8px;
+}
+
+.swagger-ui .filter-container .filter .operation-filter-input:focus {
+  border-color: var(--teal-600);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+}
+
+.swagger-ui .loading-container .loading {
+  border-color: var(--teal-600);
+}
+
+.swagger-ui .model-box-control:focus,
+.swagger-ui .model-toggle:focus {
+  outline: 2px solid var(--teal-600);
+}
+
+.swagger-ui .tab li.active button {
+  color: var(--teal-700);
+  border-bottom-color: var(--teal-600);
+}
+
+.swagger-ui .tab button:hover {
+  color: var(--teal-600);
+}
+
+.swagger-ui .info .base-url {
+  font-weight: 600;
+  color: var(--teal-700);
+}
+
+.swagger-ui .info a {
+  color: var(--teal-600);
+}
+
+.swagger-ui .info a:hover {
+  color: var(--teal-700);
+}

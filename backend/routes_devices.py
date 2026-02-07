@@ -1,0 +1,336 @@
+import csv
+from io import BytesIO, StringIO
+from typing import List, Optional
+
+import qrcode
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import inspect
+from sqlalchemy.orm import Session
+
+from . import models, schemas
+from .audit import log_audit
+from .auth import get_current_user_optional, require_role
+from .database import engine, get_db
+
+# 设备导出表头
+DEVICE_EXPORT_HEADERS = [
+    "设备编号", "设备名称", "科室", "位置", "状态", "启用", "已删除", "创建时间",
+]
+
+# 缓存：devices 表是否有 is_deleted 列（未迁移的旧库没有）
+_devices_has_is_deleted: Optional[bool] = None
+
+
+def _devices_table_has_is_deleted() -> bool:
+    global _devices_has_is_deleted
+    if _devices_has_is_deleted is None:
+        try:
+            cols = [c["name"] for c in inspect(engine).get_columns("devices")]
+            _devices_has_is_deleted = "is_deleted" in cols
+        except Exception:
+            _devices_has_is_deleted = False
+    return _devices_has_is_deleted
+
+
+router = APIRouter(prefix="/api/devices", tags=["devices"])
+
+
+@router.post(
+    "",
+    response_model=schemas.DeviceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_device(
+    payload: schemas.DeviceCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("device_admin", "sys_admin")),
+):
+    # 检查 device_code 唯一
+    existed = (
+        db.query(models.Device)
+        .filter(models.Device.device_code == payload.device_code)
+        .first()
+    )
+    if existed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="设备编号已存在",
+        )
+
+    data = payload.model_dump()
+    data["status"] = str(payload.status)
+    device = models.Device(**data)
+    db.add(device)
+    db.flush()  # 获得 device.id，与审计同事务提交
+    log_audit(
+        db,
+        current_user.id,
+        "device.create",
+        "device",
+        device.id,
+        f"device_code={device.device_code}",
+        do_commit=False,
+    )
+    db.commit()
+    db.refresh(device)
+    return device
+
+
+def _devices_query(
+    db: Session,
+    dept: Optional[str] = None,
+    q: Optional[str] = None,
+    include_inactive: bool = False,
+    include_deleted: bool = False,
+    deleted_only: bool = False,
+    is_admin: bool = False,
+):
+    query = db.query(models.Device)
+    if _devices_table_has_is_deleted() and deleted_only and is_admin:
+        query = query.filter(models.Device.is_deleted.is_(True))
+        # “只显示已删除”时不按启用状态过滤，便于查看全部已删除
+    else:
+        if not (include_inactive and is_admin):
+            query = query.filter(models.Device.is_active.is_(True))
+        if _devices_table_has_is_deleted() and not (include_deleted and is_admin):
+            query = query.filter(models.Device.is_deleted.is_(False))
+    if dept:
+        query = query.filter(models.Device.dept == dept)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (models.Device.name.ilike(like))
+            | (models.Device.device_code.ilike(like))
+        )
+    return query.order_by(models.Device.id.desc())
+
+
+@router.get("/suggest")
+def suggest_devices(
+    q: Optional[str] = Query(None, description="名称或编号模糊搜索，为空则返回最近一批"),
+    limit: int = Query(30, ge=1, le=100),
+    dept: Optional[str] = Query(None, description="仅返回该科室设备，用于科室下拉联想"),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user_optional),
+):
+    """联想/下拉用：轻量返回设备列表，用于使用记录筛选等。数据量大时避免一次拉全量。"""
+    query = db.query(models.Device).filter(models.Device.is_active.is_(True))
+    if _devices_table_has_is_deleted():
+        query = query.filter(models.Device.is_deleted.is_(False))
+    if dept:
+        query = query.filter(models.Device.dept == dept)
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(
+            (models.Device.name.ilike(like))
+            | (models.Device.device_code.ilike(like))
+        )
+    rows = query.order_by(models.Device.id.desc()).limit(limit).all()
+    return [
+        {"id": d.id, "device_code": d.device_code, "name": d.name, "dept": d.dept or ""}
+        for d in rows
+    ]
+
+
+@router.get("/count")
+def count_devices(
+    dept: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    include_inactive: bool = Query(False),
+    include_deleted: bool = Query(False),
+    deleted_only: bool = Query(False, description="管理员可传 true 仅统计已删除设备"),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user_optional),
+):
+    """返回符合条件的设备总数，用于分页展示。"""
+    is_admin = current_user and current_user.role in ("device_admin", "sys_admin")
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    return {"total": query.count()}
+
+
+@router.get("", response_model=List[schemas.DeviceRead])
+def list_devices(
+    dept: Optional[str] = Query(None),
+    q: Optional[str] = Query(
+        None, description="按名称或编号模糊搜索"
+    ),
+    include_inactive: bool = Query(False, description="管理员可传 true 查看含已停用设备"),
+    include_deleted: bool = Query(False, description="管理员可传 true 查看全部（含已删除），与 deleted_only 二选一"),
+    deleted_only: bool = Query(False, description="管理员可传 true 仅查看已删除设备"),
+    limit: int = Query(100, ge=1, le=500, description="每页条数"),
+    offset: int = Query(0, ge=0, description="偏移量，用于分页"),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user_optional),
+):
+    is_admin = current_user and current_user.role in ("device_admin", "sys_admin")
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    return query.offset(offset).limit(limit).all()
+
+
+def _device_to_export_row(d: models.Device, status_label_map: dict) -> List[str]:
+    """单行设备导出数据，状态为中文。"""
+    status_code = getattr(d, "status", None) or "1"
+    if isinstance(status_code, int):
+        status_code = str(status_code)
+    status_label = status_label_map.get(status_code, status_code)
+    return [
+        d.device_code or "",
+        d.name or "",
+        d.dept or "",
+        d.location or "",
+        status_label,
+        "是" if d.is_active else "否",
+        "是" if getattr(d, "is_deleted", False) else "否",
+        (d.created_at.strftime("%Y-%m-%d %H:%M:%S") if d.created_at else ""),
+    ]
+
+
+@router.get("/export")
+def export_devices(
+    dept: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    include_inactive: bool = Query(True, description="导出含已停用设备"),
+    include_deleted: bool = Query(False, description="导出含已删除设备"),
+    deleted_only: bool = Query(False, description="仅导出已删除设备"),
+    format: str = Query("csv", description="导出格式: csv / xlsx"),
+    db: Session = Depends(get_db),
+    current_user: Optional[models.User] = Depends(get_current_user_optional),
+):
+    """导出设备列表（CSV/Excel），便于核对；仅管理员可导出。"""
+    if not current_user or current_user.role not in ("device_admin", "sys_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="仅管理员可导出",
+        )
+    is_admin = True
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    devices = query.all()
+    status_label_map = {}
+    for item in db.query(models.DictItem).filter(
+        models.DictItem.dict_type == "device_status",
+        models.DictItem.is_deleted.is_(False),
+    ).all():
+        status_label_map[item.code] = item.label or item.code
+    rows = [DEVICE_EXPORT_HEADERS] + [_device_to_export_row(d, status_label_map) for d in devices]
+    fmt = (format or "csv").lower().strip()
+    log_audit(db, current_user.id, "device.export", None, None, f"format={fmt},count={len(devices)}")
+    if fmt == "xlsx":
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "设备列表"
+        for i, row in enumerate(rows, 1):
+            for j, cell in enumerate(row, 1):
+                ws.cell(row=i, column=j, value=cell)
+        if rows:
+            for cell in ws[1]:
+                cell.font = Font(bold=True)
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return Response(
+            content=buf.read(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="devices.xlsx"'},
+        )
+    output = StringIO()
+    writer = csv.writer(output)
+    for row in rows:
+        writer.writerow(row)
+    content = output.getvalue().encode("utf-8-sig")
+    output.close()
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="devices.csv"'},
+    )
+
+
+@router.get("/{device_id}", response_model=schemas.DeviceRead)
+def get_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.get(models.Device, device_id)
+    if not device or getattr(device, "is_deleted", False) or not device.is_active:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    return device
+
+
+@router.get("/{device_id}/qrcode")
+def get_device_qrcode(
+    device_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    返回设备二维码 PNG 图片，后续可用于打印标签。
+    二维码内容建议为短链接或包含设备唯一信息的 URL。
+    """
+    device = db.get(models.Device, device_id)
+    if not device or getattr(device, "is_deleted", False) or not device.is_active:
+        raise HTTPException(status_code=404, detail="设备不存在")
+
+    # 简单示例：用设备编号构造一个占位链接，后续可替换为正式域名
+    qr_value = device.qr_value or f"/h5/scan?device_code={device.device_code}"
+
+    img = qrcode.make(qr_value)
+    buf = BytesIO()
+    # 兼容 PIL 与 pypng 等后端：PIL 用 format="PNG"，pypng 只支持 .save(buf)
+    try:
+        img.save(buf, format="PNG")
+    except TypeError:
+        img.save(buf)
+    buf.seek(0)
+
+    return Response(
+        content=buf.read(),
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'inline; filename="device_{device.id}_qrcode.png"'
+        },
+    )
+
+
+@router.patch("/{device_id}", response_model=schemas.DeviceRead)
+def update_device(
+    device_id: int,
+    payload: schemas.DeviceUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("device_admin", "sys_admin")),
+):
+    """更新设备（名称、科室、位置、状态、启用、软删除）。仅管理员。"""
+    device = db.get(models.Device, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    was_deleted = getattr(device, "is_deleted", False) if _devices_table_has_is_deleted() else False
+    if payload.name is not None:
+        device.name = payload.name.strip()
+    if payload.dept is not None:
+        device.dept = payload.dept.strip() or None
+    if payload.location is not None:
+        device.location = payload.location.strip() or None
+    if payload.status is not None:
+        device.status = str(payload.status)
+    if payload.is_active is not None:
+        device.is_active = payload.is_active
+    if payload.is_deleted is not None and _devices_table_has_is_deleted():
+        device.is_deleted = payload.is_deleted
+    code_prefix = f"device_code={device.device_code or ''}"
+    if payload.is_deleted is True:
+        log_audit(
+            db,
+            current_user.id,
+            "device.delete",
+            "device",
+            device_id,
+            f"{code_prefix},soft_delete",
+            do_commit=False,
+        )
+    elif payload.is_deleted is False and was_deleted:
+        log_audit(db, current_user.id, "device.restore", "device", device_id, code_prefix, do_commit=False)
+    else:
+        parts = [k for k in ("name", "dept", "status", "is_active") if getattr(payload, k) is not None]
+        details = code_prefix + ("," + ",".join(parts) if parts else "")
+        log_audit(db, current_user.id, "device.update", "device", device_id, details, do_commit=False)
+    db.commit()
+    db.refresh(device)
+    return device
+

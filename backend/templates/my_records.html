@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>我的登记记录</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <style>
+      /* 与 scan / 后台统一设计语言 */
+      * { box-sizing: border-box; }
+      :root {
+        --primary: #0d9488;
+        --primary-dark: #0f766e;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #334155;
+        --text-muted: #64748b;
+        --radius: 12px;
+        --shadow: 0 2px 8px rgba(13, 148, 136, 0.06);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+      }
+      body {
+        font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 16px 16px calc(60px + var(--safe-bottom));
+        padding-top: calc(12px + var(--safe-top));
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        background: linear-gradient(180deg, #f0fdfa 0%, #e0f2fe 38%, #f0f9ff 100%);
+        font-size: 16px;
+        color: var(--text);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .page-header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      .page-header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        color: var(--primary-dark);
+      }
+      .page-header .sub {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .wrap {
+        max-width: 420px;
+        margin: 0 auto;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .toolbar .hint {
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+      .btn-refresh {
+        min-height: 44px;
+        padding: 0 20px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--primary-dark);
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+      .btn-refresh:active { opacity: 0.9; }
+      .load-more-wrap { text-align: center; margin-top: 16px; margin-bottom: 8px; }
+      .btn-load-more {
+        min-height: 44px;
+        padding: 0 24px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--primary-dark);
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+      .btn-load-more:active { opacity: 0.9; }
+      .btn-load-more:disabled { opacity: 0.6; cursor: not-allowed; }
+      .record-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .record-card {
+        background: var(--surface);
+        border-radius: 14px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+      }
+      .record-card .time {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .record-card .device {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin-bottom: 4px;
+      }
+      .record-card .meta {
+        font-size: 14px;
+        color: var(--text);
+      }
+      .record-card .note {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+      }
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        background: var(--surface);
+        border-radius: 16px;
+        border: 1px dashed var(--border);
+        box-shadow: var(--shadow);
+      }
+      .empty-state p {
+        margin: 0 0 16px;
+        font-size: 15px;
+        color: var(--text-muted);
+      }
+      .empty-state a {
+        display: inline-block;
+        min-height: 44px;
+        line-height: 44px;
+        padding: 0 24px;
+        border-radius: var(--radius);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .empty-state a:active { opacity: 0.9; }
+      .loading, .error-msg {
+        text-align: center;
+        padding: 24px;
+        font-size: 15px;
+        color: var(--text-muted);
+      }
+      .error-msg { color: #dc2626; }
+      .bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(56px + var(--safe-bottom));
+        padding-bottom: var(--safe-bottom);
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+        z-index: 100;
+      }
+      .bottom-nav a {
+        flex: 1;
+        max-width: 180px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .bottom-nav a.active { color: var(--primary-dark); }
+      .bottom-nav a:active { opacity: 0.8; }
+      .page-version {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <h1>我的登记记录</h1>
+      <p class="sub">最近登记一览</p>
+    </div>
+
+    <div class="wrap">
+      <div class="toolbar">
+        <span class="hint" id="count-hint"></span>
+        <button type="button" class="btn-refresh" id="btn-refresh">刷新</button>
+      </div>
+
+      <div id="list-container">
+        <div class="loading" id="loading">加载中...</div>
+        <div class="record-list" id="record-list" style="display:none;"></div>
+        <div class="load-more-wrap" id="load-more-wrap" style="display:none;">
+          <button type="button" class="btn-load-more" id="btn-load-more">加载更多</button>
+        </div>
+        <div class="empty-state" id="empty-state" style="display:none;">
+          <p>暂无登记记录</p>
+          <a href="/h5/scan">去登记</a>
+        </div>
+        <div class="error-msg" id="error-msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="page-version">版本 v{{ app_version }}</div>
+    <nav class="bottom-nav" aria-label="主导航">
+      <a href="/h5/scan">登记</a>
+      <a href="/h5/my-records" class="active">我的记录</a>
+    </nav>
+
+    <script>
+      function escapeHtml(s) {
+        if (s == null || s === undefined) return "";
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+      }
+      (function () {
+        var hash = location.hash.slice(1);
+        var q = new URLSearchParams(location.search);
+        var token = new URLSearchParams(hash).get("token") || q.get("token");
+        if (token) {
+          try { localStorage.setItem("device_scan_token", token); } catch (e) {}
+        }
+      })();
+      function authHeaders() {
+        try {
+          var t = localStorage.getItem("device_scan_token");
+          return t ? { "Authorization": "Bearer " + t } : {};
+        } catch (e) { return {}; }
+      }
+
+      var typeNames = {
+        1: "常规使用",
+        2: "借用",
+        3: "维修/故障",
+        4: "校准/质控",
+        5: "其他"
+      };
+
+      function formatTime(iso) {
+        var d = new Date(iso);
+        var now = new Date();
+        var today = now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
+        var dDate = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+        if (dDate === today) {
+          return "今天 " + d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+        }
+        return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+      }
+
+      var loadingEl = document.getElementById("loading");
+      var listEl = document.getElementById("record-list");
+      var loadMoreWrap = document.getElementById("load-more-wrap");
+      var btnLoadMore = document.getElementById("btn-load-more");
+      var emptyEl = document.getElementById("empty-state");
+      var errorEl = document.getElementById("error-msg");
+      var countHint = document.getElementById("count-hint");
+      var btnRefresh = document.getElementById("btn-refresh");
+
+      var pageSize = 30;
+      var recordsLoaded = [];
+      var totalCount = null;
+
+      function showLoading() {
+        loadingEl.style.display = "block";
+        listEl.style.display = "none";
+        loadMoreWrap.style.display = "none";
+        emptyEl.style.display = "none";
+        errorEl.style.display = "none";
+      }
+
+      function renderRecordCards(records) {
+        listEl.innerHTML = "";
+        (records || []).forEach(function (r) {
+          var card = document.createElement("div");
+          card.className = "record-card";
+          var typeText = typeNames[r.usage_type] || String(r.usage_type);
+          card.innerHTML =
+            "<div class=\"time\">" + escapeHtml(formatTime(r.start_time)) + "</div>" +
+            "<div class=\"device\">" + escapeHtml(r.device_name ? (r.device_name + "（" + (r.device_code || "") + "）") : ("设备编号 " + (r.device_code || ""))) + " · " + escapeHtml(typeText) + "</div>" +
+            "<div class=\"meta\">使用类型：" + escapeHtml(typeText) + "</div>" +
+            (r.note ? "<div class=\"note\">" + escapeHtml(r.note.length > 50 ? r.note.slice(0, 50) + "…" : r.note) + "</div>" : "");
+          listEl.appendChild(card);
+        });
+      }
+
+      function showList(records, total) {
+        loadingEl.style.display = "none";
+        errorEl.style.display = "none";
+        recordsLoaded = records || [];
+        totalCount = total != null ? total : recordsLoaded.length;
+        if (!recordsLoaded.length) {
+          emptyEl.style.display = "block";
+          listEl.style.display = "none";
+          loadMoreWrap.style.display = "none";
+          countHint.textContent = "";
+          return;
+        }
+        emptyEl.style.display = "none";
+        listEl.style.display = "flex";
+        if (totalCount != null) {
+          countHint.textContent = "共 " + totalCount + " 条，已加载 " + recordsLoaded.length + " 条";
+        } else {
+          countHint.textContent = "已加载 " + recordsLoaded.length + " 条";
+        }
+        renderRecordCards(recordsLoaded);
+        var hasMore = totalCount != null ? recordsLoaded.length < totalCount : recordsLoaded.length >= pageSize;
+        loadMoreWrap.style.display = hasMore ? "block" : "none";
+      }
+
+      function showError(msg) {
+        loadingEl.style.display = "none";
+        listEl.style.display = "none";
+        loadMoreWrap.style.display = "none";
+        emptyEl.style.display = "none";
+        errorEl.style.display = "block";
+        errorEl.textContent = msg;
+        countHint.textContent = "";
+      }
+
+      function loadRecords(append) {
+        if (!append) showLoading();
+        var offset = append ? recordsLoaded.length : 0;
+        var listUrl = "/api/usage?limit=" + pageSize + "&offset=" + offset;
+        if (append) {
+          btnLoadMore.disabled = true;
+          btnLoadMore.textContent = "加载中...";
+        }
+        fetch(listUrl, { headers: authHeaders() })
+          .then(function (res) {
+            if (res.status === 401) {
+              showError("请先登录后查看记录");
+              return Promise.reject(new Error("未登录"));
+            }
+            if (!res.ok) throw new Error("加载失败");
+            return res.json();
+          })
+          .then(function (data) {
+            if (append) {
+              btnLoadMore.disabled = false;
+              btnLoadMore.textContent = "加载更多";
+            }
+            if (!data || !Array.isArray(data)) return;
+            var nextList = append ? recordsLoaded.concat(data) : data;
+            if (!append) {
+              fetch("/api/usage/count", { headers: authHeaders() })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .catch(function () { return null; })
+                .then(function (o) {
+                  var total = (o && typeof o.total === "number") ? o.total : (data.length >= pageSize ? data.length + 1 : data.length);
+                  showList(nextList, total);
+                });
+            } else {
+              var effectiveTotal = data.length < pageSize ? nextList.length : totalCount;
+              showList(nextList, effectiveTotal);
+            }
+          })
+          .catch(function (e) {
+            if (append) {
+              btnLoadMore.disabled = false;
+              btnLoadMore.textContent = "加载更多";
+            }
+            if (e.message !== "未登录") showError(e.message || "加载失败，请稍后重试");
+          });
+      }
+
+      function loadMore() {
+        if (recordsLoaded.length < pageSize && totalCount !== null) return;
+        loadRecords(true);
+      }
+
+      btnRefresh.addEventListener("click", function () { loadRecords(false); });
+      if (btnLoadMore) btnLoadMore.addEventListener("click", loadMore);
+      loadRecords(false);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>设备使用登记</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <style>
+      /* 与后台统一：主色、圆角、阴影 */
+      * { box-sizing: border-box; }
+      :root {
+        --primary: #0d9488;
+        --primary-dark: #0f766e;
+        --primary-tint: #ccfbf1;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #334155;
+        --text-muted: #64748b;
+        --radius: 12px;
+        --touch-min: 44px;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --shadow: 0 2px 8px rgba(13, 148, 136, 0.06);
+      }
+      body {
+        font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 16px 16px calc(60px + var(--safe-bottom));
+        padding-top: calc(12px + var(--safe-top));
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        background: linear-gradient(180deg, #f0fdfa 0%, #e0f2fe 38%, #f0f9ff 100%);
+        font-size: 16px;
+        color: var(--text);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .page-header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      .page-header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        color: var(--primary-dark);
+      }
+      .page-header .sub {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .card {
+        max-width: 420px;
+        margin: 0 auto;
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 20px 16px 24px;
+        border: 1px solid var(--border);
+      }
+      /* 扫一扫 + 输入 两种方式 */
+      .device-entry {
+        margin-bottom: 16px;
+      }
+      .device-entry .label {
+        font-size: 14px;
+        color: #475569;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      .btn-scan {
+        width: 100%;
+        min-height: 52px;
+        margin-bottom: 16px;
+        padding: 0 20px;
+        border-radius: var(--radius);
+        border: none;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        font-size: 17px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .btn-scan:active { opacity: 0.9; }
+      .btn-scan svg {
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+      }
+      .divider {
+        text-align: center;
+        margin: 14px 0;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+      .device-input-row {
+        display: flex;
+        gap: 10px;
+      }
+      .device-code-error {
+        font-size: 14px;
+        color: #dc2626;
+        margin-top: 6px;
+        line-height: 1.4;
+      }
+      .device-input-row input {
+        flex: 1;
+        min-height: var(--touch-min);
+        padding: 12px 14px;
+        border-radius: var(--radius);
+        border: 2px solid #e2e8f0;
+        font-size: 17px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .device-input-row input::placeholder { color: #94a3b8; }
+      .device-input-row input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+      }
+      .device-input-row button {
+        min-height: var(--touch-min);
+        min-width: 72px;
+        padding: 0 20px;
+        border-radius: var(--radius);
+        border: none;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .device-input-row button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+      /* 设备信息块 */
+      .device-info {
+        background: linear-gradient(135deg, var(--primary-tint) 0%, #cffafe 100%);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        font-size: 15px;
+        color: var(--primary-dark);
+        border-left: 4px solid var(--primary);
+        font-weight: 500;
+      }
+      .device-info.loading { color: var(--text-muted); }
+      .device-info.error {
+        background: #fef2f2;
+        border-left-color: #dc2626;
+        color: #991b1b;
+      }
+      .change-device {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 6px 0;
+        min-height: var(--touch-min);
+        line-height: 1.4;
+        font-size: 14px;
+        color: var(--teal-600);
+        cursor: pointer;
+        background: none;
+        border: none;
+        text-decoration: underline;
+      }
+      .form-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      .field {
+        margin-bottom: 16px;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .field.optional label::after {
+        content: "（选填）";
+        font-weight: 400;
+        color: var(--text-muted);
+      }
+      .field-hidden { display: none !important; }
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        min-height: var(--touch-min);
+        padding: 12px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        font-size: 17px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .field textarea {
+        min-height: 88px;
+        resize: vertical;
+      }
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+      }
+      .btn-submit {
+        width: 100%;
+        min-height: 52px;
+        margin-top: 24px;
+        padding: 14px;
+        border-radius: var(--radius);
+        border: none;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+      }
+      .btn-submit:active:not(:disabled) { transform: scale(0.98); }
+      .btn-submit:disabled {
+        background: #94a3b8;
+        box-shadow: none;
+        cursor: not-allowed;
+      }
+      .status { margin-top: 12px; font-size: 14px; text-align: center; min-height: 20px; }
+      .status.error { color: #dc2626; font-weight: 500; }
+      /* 成功面板 */
+      .success-panel {
+        margin-top: 24px;
+        padding: 24px 16px;
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        border: 2px solid #6ee7b7;
+        border-radius: 16px;
+        text-align: center;
+      }
+      .success-panel h3 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        color: #065f46;
+      }
+      .success-panel .success-hint {
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: #047857;
+        line-height: 1.5;
+      }
+      .success-panel .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .success-panel .actions button {
+        min-height: var(--touch-min);
+        padding: 12px 20px;
+        border-radius: var(--radius);
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+      }
+      .success-panel .btn-next {
+        background: var(--surface);
+        color: var(--primary-dark);
+        border: 2px solid var(--primary);
+      }
+      /* 底部导航：与 my_records 一致 */
+      .bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(56px + var(--safe-bottom));
+        padding-bottom: var(--safe-bottom);
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+        z-index: 100;
+      }
+      .bottom-nav a {
+        flex: 1;
+        max-width: 180px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .bottom-nav a.active {
+        color: var(--primary-dark);
+      }
+      .bottom-nav a:active { opacity: 0.8; }
+      .page-version {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* 扫一扫 全屏遮罩 */
+      .scan-overlay {
+        position: fixed;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      .scan-overlay.active { display: flex; }
+      .scan-overlay .scan-header {
+        flex-shrink: 0;
+        padding: 16px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .scan-overlay .scan-header h2 { margin: 0; font-size: 18px; }
+      .scan-overlay .scan-cancel {
+        min-height: 44px;
+        padding: 0 20px;
+        border: none;
+        background: transparent;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+      .scan-overlay .scan-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        min-height: 200px;
+      }
+      .scan-overlay video {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .scan-overlay canvas {
+        position: absolute;
+        left: -9999px;
+      }
+      .scan-overlay .scan-frame {
+        position: relative;
+        z-index: 2;
+        width: 260px;
+        height: 260px;
+        border: 3px solid rgba(13, 148, 136, 0.9);
+        border-radius: 16px;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+      }
+      .scan-overlay .scan-hint {
+        position: absolute;
+        bottom: 24px;
+        left: 20px;
+        right: 20px;
+        text-align: center;
+        color: rgba(255,255,255,0.9);
+        font-size: 14px;
+      }
+      .scan-overlay .scan-error {
+        padding: 20px;
+        text-align: center;
+        color: #fca5a5;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <h1>设备使用登记</h1>
+      <p class="sub">扫一扫 或 输入设备编号 → 填写 → 提交</p>
+    </div>
+
+    <div class="card">
+      <div class="device-entry">
+        <button type="button" id="btn-scan" class="btn-scan">
+          <svg viewBox="0 0 24 24"><path d="M4 6h2v12H4V6zm14 0h2v12h-2V6zM2 4v16h4V4H2zm6 0v16h8V4H8zm10 0v16h4V4h-4z"/></svg>
+          扫一扫
+        </button>
+        <p class="divider">或 输入设备编号</p>
+        <div class="device-input-row">
+          <input
+            id="device-code-input"
+            type="text"
+            placeholder="设备编号"
+            autocomplete="off"
+            inputmode="text"
+            enterkeyhint="go"
+          />
+          <button type="button" id="btn-query-device">查询</button>
+        </div>
+        <div id="device-code-error" class="device-code-error" style="display:none;" role="alert"></div>
+      </div>
+
+      <div class="device-info" id="device-info">请点击「扫一扫」或输入设备编号</div>
+      <button type="button" class="change-device" id="change-device" style="display:none;">更换设备</button>
+
+      <div class="form-section" id="form-section" style="display:none;">
+        <div class="field">
+          <label>使用类型</label>
+          <select id="usage_type"><option value="">加载中...</option></select>
+        </div>
+
+        <div class="field optional">
+          <label>备注</label>
+          <textarea id="note" rows="2" placeholder="如：12床术后监护"></textarea>
+        </div>
+
+        <div class="field optional field-hidden" id="field-patient-id">
+          <label>患者ID/病历号</label>
+          <input id="patient_id" type="text" placeholder="选填" />
+        </div>
+
+        <button type="button" id="submit-btn" class="btn-submit">提交登记</button>
+        <div class="status" id="status"></div>
+      </div>
+
+      <div class="success-panel" id="success-panel" style="display:none;">
+        <h3>登记成功</h3>
+        <p class="success-hint">本台设备已登记，可继续登记下一台。</p>
+        <div class="actions">
+          <button type="button" class="btn-next" id="btn-next-device">登记下一台</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 扫一扫 全屏层 -->
+    <div class="scan-overlay" id="scan-overlay">
+      <div class="scan-header">
+        <h2>扫一扫</h2>
+        <button type="button" class="scan-cancel" id="scan-cancel">取消</button>
+      </div>
+      <div class="scan-body">
+        <video id="scan-video" playsinline muted></video>
+        <canvas id="scan-canvas"></canvas>
+        <div class="scan-frame"></div>
+        <p class="scan-hint">将设备二维码放入框内</p>
+      </div>
+      <div class="scan-error" id="scan-error" style="display:none;"></div>
+    </div>
+
+    <div class="page-version">版本 v{{ app_version }}</div>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <a href="/h5/scan" class="active">登记</a>
+      <a href="/h5/my-records">我的记录</a>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+      (function () {
+        const hash = location.hash.slice(1);
+        const q = new URLSearchParams(location.search);
+        const token = new URLSearchParams(hash).get("token") || q.get("token");
+        if (token) {
+          try { localStorage.setItem("device_scan_token", token); } catch (e) {}
+          if (q.get("token")) {
+            q.delete("token");
+            const s = q.toString();
+            history.replaceState(null, "", location.pathname + (s ? "?" + s : "") + location.hash);
+          }
+        }
+      })();
+      function authHeaders() {
+        try {
+          const t = localStorage.getItem("device_scan_token");
+          return t ? { "Authorization": "Bearer " + t } : {};
+        } catch (e) { return {}; }
+      }
+
+      const deviceIdFromUrl = new URLSearchParams(location.search).get("device_id");
+      const deviceCodeFromUrl = new URLSearchParams(location.search).get("device_code");
+      const deviceCodeInput = document.getElementById("device-code-input");
+      const deviceCodeErrorEl = document.getElementById("device-code-error");
+      const btnQueryDevice = document.getElementById("btn-query-device");
+      const btnScan = document.getElementById("btn-scan");
+      const deviceInfoEl = document.getElementById("device-info");
+      const changeDeviceBtn = document.getElementById("change-device");
+      const formSection = document.getElementById("form-section");
+      const statusEl = document.getElementById("status");
+      const submitBtn = document.getElementById("submit-btn");
+      const successPanel = document.getElementById("success-panel");
+      const btnNextDevice = document.getElementById("btn-next-device");
+      const scanOverlay = document.getElementById("scan-overlay");
+      const scanVideo = document.getElementById("scan-video");
+      const scanCanvas = document.getElementById("scan-canvas");
+      const scanCancel = document.getElementById("scan-cancel");
+      const scanErrorEl = document.getElementById("scan-error");
+      const usageTypeSelect = document.getElementById("usage_type");
+
+      var DEVICE_CODE_ERROR_MSG = "该设备编码不存在或已被删除，请核对后重新输入/扫描";
+
+      function showDeviceCodeError(msg) {
+        deviceCodeErrorEl.textContent = msg || "";
+        deviceCodeErrorEl.style.display = msg ? "block" : "none";
+      }
+
+      function clearFormDataExceptDeviceCode() {
+        if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
+        document.getElementById("note").value = "";
+        document.getElementById("patient_id").value = "";
+      }
+
+      function setValidationInvalid() {
+        device = null;
+        showDeviceCodeError(DEVICE_CODE_ERROR_MSG);
+        clearFormDataExceptDeviceCode();
+        deviceCodeInput.focus();
+        submitBtn.disabled = true;
+        formSection.style.display = "none";
+        changeDeviceBtn.style.display = "none";
+        deviceInfoEl.textContent = "请扫描设备二维码，或输入设备编号后按回车";
+        deviceInfoEl.className = "device-info";
+      }
+
+      function setValidationValid() {
+        showDeviceCodeError("");
+        submitBtn.disabled = false;
+      }
+
+      let device = null;
+      let scanStream = null;
+      let scanAnimationId = null;
+
+      function showDeviceState(msg, isError) {
+        deviceInfoEl.textContent = msg;
+        deviceInfoEl.className = "device-info" + (isError ? " error" : "");
+      }
+
+      function setDeviceLoaded(d) {
+        device = d;
+        deviceCodeInput.value = d.device_code;
+        deviceInfoEl.textContent = d.name + "（" + d.device_code + "） — " + (d.dept || "未分配科室");
+        deviceInfoEl.className = "device-info";
+        changeDeviceBtn.style.display = "block";
+        formSection.style.display = "block";
+        setValidationValid();
+      }
+
+      function setDeviceCleared() {
+        device = null;
+        deviceCodeInput.value = "";
+        showDeviceCodeError("");
+        successPanel.style.display = "none";
+        deviceCodeInput.focus();
+        deviceInfoEl.textContent = "请扫描设备二维码，或输入设备编号后按回车";
+        deviceInfoEl.className = "device-info";
+        changeDeviceBtn.style.display = "none";
+        formSection.style.display = "none";
+        submitBtn.disabled = true;
+      }
+
+      async function loadDeviceById(id) {
+        showDeviceState("正在加载...", false);
+        deviceInfoEl.classList.add("loading");
+        showDeviceCodeError("");
+        try {
+          const res = await fetch("/api/devices/" + id, { headers: authHeaders() });
+          if (!res.ok) throw new Error("设备不存在或已停用");
+          setDeviceLoaded(await res.json());
+        } catch (e) {
+          setValidationInvalid();
+        }
+        deviceInfoEl.classList.remove("loading");
+      }
+
+      async function loadDeviceByCode(code) {
+        const trimmed = (code || "").trim();
+        if (!trimmed) {
+          showDeviceState("请输入设备编号", true);
+          showDeviceCodeError("");
+          return;
+        }
+        deviceCodeInput.value = trimmed;
+        showDeviceState("正在查询...", false);
+        deviceInfoEl.classList.add("loading");
+        showDeviceCodeError("");
+        try {
+          const res = await fetch("/api/devices?q=" + encodeURIComponent(trimmed), { headers: authHeaders() });
+          if (!res.ok) throw new Error("查询失败");
+          const list = await res.json();
+          const found = list.find(function (d) { return d.device_code === trimmed; });
+          if (!found) {
+            setValidationInvalid();
+            deviceInfoEl.classList.remove("loading");
+            return;
+          }
+          setDeviceLoaded(found);
+        } catch (e) {
+          setValidationInvalid();
+        }
+        deviceInfoEl.classList.remove("loading");
+      }
+
+      function onQueryDevice() {
+        if (device) return;
+        loadDeviceByCode(deviceCodeInput.value);
+      }
+
+      /* 解析扫码结果：URL 中 device_id= / device_code=，或纯设备编号 */
+      function parseScanResult(raw) {
+        if (!raw || typeof raw !== "string") return null;
+        var s = raw.trim();
+        if (!s) return null;
+        try {
+          var u;
+          if (/^https?:\/\//i.test(s)) u = new URL(s);
+          else if (s.indexOf("/") === 0) u = new URL(s, location.origin);
+          else if (s.indexOf("?") !== -1) u = new URL(s, location.origin + "/");
+          else return { type: "code", value: s };
+          var id = u.searchParams.get("device_id");
+          if (id && /^\d+$/.test(id)) return { type: "id", value: parseInt(id, 10) };
+          var code = u.searchParams.get("device_code");
+          if (code) return { type: "code", value: code.trim() };
+        } catch (e) {}
+        return { type: "code", value: s };
+      }
+
+      function onScanSuccess(rawString) {
+        var parsed = parseScanResult(rawString);
+        if (!parsed) return;
+        stopScan();
+        if (parsed.type === "id") loadDeviceById(parsed.value);
+        else loadDeviceByCode(parsed.value);
+      }
+
+      function stopScan() {
+        if (scanAnimationId) {
+          cancelAnimationFrame(scanAnimationId);
+          scanAnimationId = null;
+        }
+        if (scanStream && scanStream.getTracks) {
+          scanStream.getTracks().forEach(function (t) { t.stop(); });
+          scanStream = null;
+        }
+        scanVideo.srcObject = null;
+        scanOverlay.classList.remove("active");
+        scanErrorEl.style.display = "none";
+      }
+
+      function startScan() {
+        if (device) return;
+        scanErrorEl.style.display = "none";
+        scanOverlay.classList.add("active");
+        var canvas = scanCanvas;
+        var ctx = canvas.getContext("2d");
+        var video = scanVideo;
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(function (stream) {
+            scanStream = stream;
+            video.srcObject = stream;
+            video.setAttribute("playsinline", true);
+            video.play();
+            function tick() {
+              if (!scanOverlay.classList.contains("active")) return;
+              if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                ctx.drawImage(video, 0, 0);
+                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                if (typeof jsQR !== "undefined") {
+                  var code = jsQR(imageData.data, imageData.width, imageData.height);
+                  if (code && code.data) {
+                    onScanSuccess(code.data);
+                    return;
+                  }
+                }
+              }
+              scanAnimationId = requestAnimationFrame(tick);
+            }
+            tick();
+          })
+          .catch(function (err) {
+            scanErrorEl.style.display = "block";
+            scanErrorEl.textContent = "无法使用摄像头，请允许相机权限或改用输入编号。";
+          });
+      }
+
+      async function validateDeviceCodeOnBlur(trimmed) {
+        try {
+          var res = await fetch("/api/devices?q=" + encodeURIComponent(trimmed), { headers: authHeaders() });
+          if (!res.ok) { setValidationInvalid(); return; }
+          var list = await res.json();
+          var found = list.find(function (d) { return d.device_code === trimmed; });
+          if (!found) { setValidationInvalid(); return; }
+          setDeviceLoaded(found);
+        } catch (e) {
+          setValidationInvalid();
+        }
+      }
+
+      deviceCodeInput.addEventListener("blur", function () {
+        var trimmed = deviceCodeInput.value.trim();
+        if (!trimmed) { showDeviceCodeError(""); return; }
+        if (device && device.device_code === trimmed) return;
+        validateDeviceCodeOnBlur(trimmed);
+      });
+
+      btnScan.addEventListener("click", startScan);
+      scanCancel.addEventListener("click", stopScan);
+      changeDeviceBtn.addEventListener("click", function () { setDeviceCleared(); });
+      deviceCodeInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); if (!device) onQueryDevice(); }
+      });
+      btnQueryDevice.addEventListener("click", onQueryDevice);
+
+      async function submitUsage() {
+        if (!device) return;
+        if (submitBtn.disabled) return;
+        var usageTypeVal = parseInt(usageTypeSelect.value, 10);
+        if (!usageTypeSelect.value || isNaN(usageTypeVal)) {
+          statusEl.textContent = "请先选择使用类型";
+          statusEl.className = "status error";
+          return;
+        }
+        submitBtn.disabled = true;
+        submitBtn.textContent = "提交中...";
+        statusEl.textContent = "";
+        statusEl.className = "status";
+        var payload = {
+          device_code: device.device_code,
+          usage_type: usageTypeVal,
+          patient_id: document.getElementById("patient_id").value || null,
+          note: document.getElementById("note").value || null,
+          photo_urls: [],
+          source: "h5",
+        };
+        try {
+          var res = await fetch("/api/usage", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            var err = await res.json().catch(function () { return {}; });
+            var msg = res.status === 401 ? "请先登录后登记" : (err.detail || "提交失败");
+            throw new Error(msg);
+          }
+          if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
+          document.getElementById("note").value = "";
+          document.getElementById("patient_id").value = "";
+          statusEl.textContent = "";
+          setDeviceCleared();
+          successPanel.style.display = "block";
+          successPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } catch (e) {
+          statusEl.textContent = e.message;
+          statusEl.className = "status error";
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "提交登记";
+        }
+      }
+
+      submitBtn.addEventListener("click", submitUsage);
+      btnNextDevice.addEventListener("click", function () {
+        successPanel.style.display = "none";
+      });
+
+      async function loadUsageTypeOptions() {
+        try {
+          const res = await fetch("/api/dict?dict_type=usage_type", { headers: authHeaders() });
+          if (!res.ok) return;
+          const list = await res.json();
+          usageTypeSelect.innerHTML = "";
+          list.forEach(function (item) {
+            const opt = document.createElement("option");
+            opt.value = String(item.code);
+            opt.textContent = item.label;
+            usageTypeSelect.appendChild(opt);
+          });
+          if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
+        } catch (e) {
+          usageTypeSelect.innerHTML = "<option value=\"1\">常规使用</option><option value=\"2\">借用</option><option value=\"3\">维修/故障</option><option value=\"4\">校准/质控</option><option value=\"5\">其他</option>";
+        }
+      }
+      loadUsageTypeOptions();
+
+      if (deviceCodeFromUrl) loadDeviceByCode(deviceCodeFromUrl);
+        else if (deviceIdFromUrl) loadDeviceById(deviceIdFromUrl);
+    </script>
+  </body>
+</html>
