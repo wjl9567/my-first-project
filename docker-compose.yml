@@ -1,0 +1,76 @@
+# 医院设备扫码登记系统 - Docker Compose 生产部署
+# 三容器：app（FastAPI）、postgres、nginx
+# 使用前：复制 .env.template 为 .env，填写 JWT_SECRET、BASE_URL 等
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: device-scan-app
+    restart: unless-stopped
+    environment:
+      # 必填：生产必须设置，否则应用拒绝启动
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=production
+      # 数据库：由 compose 内网连接，无需暴露端口
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-device_scan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-device_scan}
+      # 对外访问地址，必须 HTTPS（企微可信域名）
+      - BASE_URL=${BASE_URL:-https://your-domain.com}
+      # 可选：企微
+      - WECOM_CORP_ID=${WECOM_CORP_ID:-}
+      - WECOM_AGENT_ID=${WECOM_AGENT_ID:-}
+      - WECOM_SECRET=${WECOM_SECRET:-}
+      # 可选：本地管理员首次登录
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # 可选：院内访问控制（逗号分隔）
+      - ALLOWED_ADMIN_ORIGINS=${ALLOWED_ADMIN_ORIGINS:-}
+      - ALLOWED_ADMIN_IPS=${ALLOWED_ADMIN_IPS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: device-scan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-device_scan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-device_scan}
+    volumes:
+      # 数据持久化到宿主机，避免删容器丢数据
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-device_scan} -d ${POSTGRES_DB:-device_scan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:alpine
+    container_name: device-scan-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # HTTPS 证书（Let's Encrypt 申请后挂载）
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - appnet
+
+volumes:
+  postgres_data:
+
+networks:
+  appnet:
+    driver: bridge

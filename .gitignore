@@ -1,0 +1,4 @@
+# 生产敏感配置与证书（勿提交）
+.env
+nginx/ssl/*.pem
+nginx/ssl/*.key

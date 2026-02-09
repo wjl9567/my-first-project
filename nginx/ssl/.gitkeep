@@ -1,0 +1,1 @@
+# 将 fullchain.pem、privkey.pem 放入此目录用于 HTTPS（勿提交证书到 Git）

@@ -1,6 +1,8 @@
 # 上线部署详细步骤
 
-本文档按顺序列出从零到生产可用的完整步骤，便于在服务器上**一次性完成上线**。按顺序执行且环境匹配（Linux + PostgreSQL + Python 3.10+）时，可一次安装部署成功；若某步报错，请对照第七章「常见问题」和日志排查。
+> **推荐生产环境**：若使用 Docker，请直接参考 **[生产级一站式部署方案（Docker Compose）](PRODUCTION_DOCKER.md)**：上传代码、改 `.env`、执行 `./deploy.sh` 即可。
+
+本文档按顺序列出从零到生产可用的完整步骤（非 Docker），便于在服务器上**一次性完成上线**。按顺序执行且环境匹配（Linux + PostgreSQL + Python 3.10+）时，可一次安装部署成功；若某步报错，请对照第七章「常见问题」和日志排查。
 
 ---
 
@@ -349,7 +351,7 @@ A：检查 `BASE_URL` 是否为 https、与企微应用「可信域名」一致�
 A：若配置了 `ALLOWED_ADMIN_ORIGINS` 或 `ALLOWED_ADMIN_IPS`，需从允许的域名或 IP 访问；或暂时清空这两项再试（仅建议用于排查）。
 
 **Q：如何更新代码后再上线？**  
-A：在服务器上 `git pull`（或重新上传代码），在 **backend** 目录执行 `poetry install --no-dev`，再 `sudo systemctl restart device-scan`。`.env` 在项目根时无需改动。如有数据库结构变更，需按项目说明执行迁移脚本。
+A：在服务器上 `git pull`（或重新上传代码），在 **backend** 目录执行 `poetry install --no-dev`，再 `sudo systemctl restart device-scan`。`.env` 在项目根时无需改动。如有数据库结构变更，需执行对应迁移脚本，例如使用记录软删除：`cd backend && poetry run python run_migrate_usage_soft_delete.py`。
 
 **Q：日志与排错**  
 A：`sudo journalctl -u device-scan -f` 查看应用日志；Nginx 错误日志一般在 `/var/log/nginx/error.log`。
