@@ -47,9 +47,12 @@
         color: var(--primary-dark);
       }
       .page-header .sub {
-        font-size: 13px;
+        font-size: 14px;
         color: var(--text-muted);
+        line-height: 1.6;
       }
+      .page-header .sub .step-current { color: var(--primary-dark); font-weight: 700; }
+      .page-header .sub .step-next { color: #94a3b8; font-weight: 400; }
       .dev-login-hint {
         margin: 0 16px 12px;
         padding: 10px 12px;
@@ -65,47 +68,52 @@
         background: var(--surface);
         border-radius: 16px;
         box-shadow: var(--shadow);
-        padding: 20px 16px 24px;
+        padding: 24px 20px 28px;
         border: 1px solid var(--border);
       }
       /* 扫一扫 + 输入 两种方式 */
       .device-entry {
-        margin-bottom: 16px;
+        margin-bottom: 20px;
       }
       .device-entry .label {
         font-size: 14px;
         color: #475569;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         font-weight: 500;
       }
       .btn-scan {
         width: 100%;
-        min-height: 52px;
-        margin-bottom: 16px;
-        padding: 0 20px;
+        min-height: 56px;
+        margin-bottom: 20px;
+        padding: 16px 24px;
         border-radius: var(--radius);
         border: none;
         background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         color: #fff;
-        font-size: 17px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 700;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
-        box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
         -webkit-tap-highlight-color: transparent;
+        transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.15s ease;
       }
-      .btn-scan:active { opacity: 0.9; }
+      .btn-scan:hover { box-shadow: 0 6px 18px rgba(13, 148, 136, 0.4); }
+      .btn-scan:active {
+        transform: scale(0.98);
+        filter: brightness(0.92);
+      }
       .btn-scan svg {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         fill: currentColor;
       }
       .divider {
         text-align: center;
-        margin: 14px 0;
+        margin: 16px 0;
         font-size: 13px;
         color: #94a3b8;
       }
@@ -122,10 +130,10 @@
       .device-input-row input {
         flex: 1;
         min-height: var(--touch-min);
-        padding: 12px 14px;
+        padding: 12px 16px;
         border-radius: var(--radius);
-        border: 2px solid #e2e8f0;
-        font-size: 17px;
+        border: 2px solid var(--border);
+        font-size: 16px;
         -webkit-appearance: none;
         appearance: none;
       }
@@ -137,36 +145,42 @@
       }
       .device-input-row button {
         min-height: var(--touch-min);
-        min-width: 72px;
+        min-width: 76px;
         padding: 0 20px;
         border-radius: var(--radius);
         border: none;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        background: #94a3b8;
         color: #fff;
         font-size: 16px;
         font-weight: 600;
+        cursor: not-allowed;
+        transition: background 0.2s, cursor 0.2s;
+      }
+      .device-input-row button:not(:disabled) {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         cursor: pointer;
       }
+      .device-input-row button:not(:disabled):active { filter: brightness(0.95); }
       .device-input-row button:disabled {
-        background: #94a3b8;
         cursor: not-allowed;
       }
-      /* 设备信息块 */
+      /* 设备信息块：默认浅灰提示 / 错误时红底 */
       .device-info {
-        background: linear-gradient(135deg, var(--primary-tint) 0%, #cffafe 100%);
+        background: #f1f5f9;
         border-radius: var(--radius);
         padding: 14px 16px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         font-size: 15px;
-        color: var(--primary-dark);
-        border-left: 4px solid var(--primary);
-        font-weight: 500;
+        color: var(--text-muted);
+        border-left: 4px solid #e2e8f0;
+        font-weight: 400;
       }
       .device-info.loading { color: var(--text-muted); }
       .device-info.error {
         background: #fef2f2;
         border-left-color: #dc2626;
         color: #991b1b;
+        font-weight: 500;
       }
       .change-device {
         display: inline-block;
@@ -182,8 +196,8 @@
         text-decoration: underline;
       }
       .form-section {
-        margin-top: 20px;
-        padding-top: 20px;
+        margin-top: 24px;
+        padding-top: 24px;
         border-top: 1px solid var(--border);
       }
       .field {
@@ -475,7 +489,7 @@
   <body>
     <div class="page-header">
       <h1>设备使用维护登记</h1>
-      <p class="sub">扫一扫 或 输入设备编号 → 填写登记信息 → 提交</p>
+      <p class="sub"><span class="step-current">扫一扫或输入设备编号</span><span class="step-next"> → 填写登记信息 → 提交</span></p>
     </div>
     <div id="dev-login-hint" class="dev-login-hint" style="display:none;">
       开发环境：请先在 <a href="/admin">后台</a> 使用管理员账号登录（需在 backend 目录 .env 中配置 ADMIN_USERNAME、ADMIN_PASSWORD），同一浏览器再刷新本页即可登记。
@@ -492,17 +506,17 @@
           <input
             id="device-code-input"
             type="text"
-            placeholder="设备编号"
+            placeholder="请输入设备编号后查询"
             autocomplete="off"
             inputmode="text"
             enterkeyhint="go"
           />
-          <button type="button" id="btn-query-device">查询</button>
+          <button type="button" id="btn-query-device" disabled>查询</button>
         </div>
         <div id="device-code-error" class="device-code-error" style="display:none;" role="alert"></div>
       </div>
 
-      <div class="device-info" id="device-info">请点击「扫一扫」或输入设备编号</div>
+      <div class="device-info" id="device-info">💡 请点击「扫一扫」或输入设备编号开始登记</div>
       <button type="button" class="change-device" id="change-device" style="display:none;">更换设备</button>
 
       <div class="form-section" id="form-section" style="display:none;">
@@ -694,8 +708,9 @@
         submitBtn.disabled = true;
         formSection.style.display = "none";
         changeDeviceBtn.style.display = "none";
-        deviceInfoEl.textContent = "请扫描设备二维码，或输入设备编号后按回车";
+        deviceInfoEl.textContent = TIP_DEFAULT;
         deviceInfoEl.className = "device-info";
+        updateQueryButtonState();
       }
 
       function setValidationValid() {
@@ -707,9 +722,14 @@
       let scanStream = null;
       let scanAnimationId = null;
 
+      var TIP_DEFAULT = "💡 请点击「扫一扫」或输入设备编号开始登记";
       function showDeviceState(msg, isError) {
-        deviceInfoEl.textContent = msg;
+        deviceInfoEl.textContent = isError ? "❌ " + msg : msg;
         deviceInfoEl.className = "device-info" + (isError ? " error" : "");
+      }
+      function updateQueryButtonState() {
+        var val = (deviceCodeInput && deviceCodeInput.value || "").trim();
+        if (btnQueryDevice) btnQueryDevice.disabled = !val;
       }
 
       function setDeviceLoaded(d) {
@@ -722,6 +742,7 @@
         formSection.style.display = "block";
         setDefaultDateAndTime();
         setValidationValid();
+        updateQueryButtonState();
       }
 
       function setDeviceCleared() {
@@ -730,11 +751,12 @@
         showDeviceCodeError("");
         successPanel.style.display = "none";
         deviceCodeInput.focus();
-        deviceInfoEl.textContent = "请扫描设备二维码，或输入设备编号后按回车";
+        deviceInfoEl.textContent = TIP_DEFAULT;
         deviceInfoEl.className = "device-info";
         changeDeviceBtn.style.display = "none";
         formSection.style.display = "none";
         submitBtn.disabled = true;
+        updateQueryButtonState();
       }
 
       async function loadDeviceById(id) {
@@ -879,12 +901,14 @@
         }
       }
 
+      deviceCodeInput.addEventListener("input", updateQueryButtonState);
       deviceCodeInput.addEventListener("blur", function () {
         var trimmed = deviceCodeInput.value.trim();
         if (!trimmed) { showDeviceCodeError(""); return; }
         if (device && device.device_code === trimmed) return;
         validateDeviceCodeOnBlur(trimmed);
       });
+      updateQueryButtonState();
 
       btnScan.addEventListener("click", startScan);
       scanCancel.addEventListener("click", stopScan);

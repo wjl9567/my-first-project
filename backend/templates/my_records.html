@@ -84,6 +84,7 @@
         border: 1px solid var(--border);
         font-size: 14px;
       }
+      .filter-row input[type="date"]::placeholder { color: var(--text-muted); }
       .filter-sep { font-size: 12px; color: var(--text-muted); }
       .btn-apply {
         min-height: 36px;
@@ -95,8 +96,24 @@
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
+        transition: filter 0.15s, opacity 0.15s;
       }
-      .btn-apply:active { opacity: 0.9; }
+      .btn-apply:hover { filter: brightness(1.05); }
+      .btn-apply:active { opacity: 0.9; filter: brightness(0.95); }
+      .btn-apply.loading { opacity: 0.85; pointer-events: none; }
+      .btn-apply.loading::after {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin-left: 8px;
+        vertical-align: middle;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: btn-spin 0.6s linear infinite;
+      }
+      @keyframes btn-spin { to { transform: rotate(360deg); } }
       .toolbar .hint {
         font-size: 14px;
         color: var(--text-muted);
@@ -114,7 +131,9 @@
         box-shadow: var(--shadow);
       }
       .btn-refresh:active { opacity: 0.9; }
-      .load-more-wrap { text-align: center; margin-top: 16px; margin-bottom: 8px; }
+      .load-more-wrap { text-align: center; margin-top: 20px; margin-bottom: 12px; }
+      .load-more-wrap .load-more-hint { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+      .load-more-wrap .load-more-hint.all-done { color: var(--primary-dark); font-weight: 500; }
       .btn-load-more {
         min-height: 44px;
         padding: 0 24px;
@@ -126,9 +145,25 @@
         font-weight: 600;
         cursor: pointer;
         box-shadow: var(--shadow);
+        transition: opacity 0.2s, box-shadow 0.2s;
       }
-      .btn-load-more:active { opacity: 0.9; }
-      .btn-load-more:disabled { opacity: 0.6; cursor: not-allowed; }
+      .btn-load-more:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15); }
+      .btn-load-more:active:not(:disabled) { opacity: 0.9; }
+      .btn-load-more:disabled { opacity: 0.7; cursor: not-allowed; }
+      .btn-load-more.loading { position: relative; color: transparent; pointer-events: none; }
+      .btn-load-more.loading::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        border: 2px solid var(--border);
+        border-top-color: var(--primary-dark);
+        border-radius: 50%;
+        animation: btn-spin 0.6s linear infinite;
+      }
       .record-list {
         display: flex;
         flex-direction: column;
@@ -137,41 +172,57 @@
       .record-card {
         background: var(--surface);
         border-radius: 14px;
-        padding: 16px;
+        padding: 18px 20px;
         border: 1px solid var(--border);
         box-shadow: var(--shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       }
+      .record-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(13, 148, 136, 0.1);
+        border-color: var(--primary);
+      }
+      .record-card .card-row { margin-bottom: 10px; }
+      .record-card .card-row:last-child { margin-bottom: 0; }
       .record-card .time {
-        font-size: 13px;
-        color: var(--text-muted);
-        margin-bottom: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f766e;
+        margin-bottom: 8px;
       }
       .record-card .device {
         font-size: 16px;
-        font-weight: 600;
-        color: var(--primary-dark);
-        margin-bottom: 4px;
+        font-weight: 700;
+        color: #0f766e;
+        margin-bottom: 6px;
       }
-      .record-card .meta {
-        font-size: 14px;
-        color: var(--text);
-      }
+      .record-card .device-status { font-weight: 600; color: #0f766e; font-size: 14px; margin-bottom: 8px; }
+      .record-card .meta { font-size: 14px; color: var(--text); }
       .record-card .extra {
         font-size: 13px;
         color: var(--text-muted);
-        margin-top: 6px;
-        line-height: 1.5;
+        margin-top: 8px;
+        line-height: 1.6;
       }
+      .record-card .tag-terminal {
+        display: inline-block;
+        padding: 4px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        margin-top: 8px;
+      }
+      .record-card .tag-terminal.done { background: #ccfbf1; color: #0f766e; font-weight: 500; }
+      .record-card .tag-terminal.pending { background: #f1f5f9; color: #64748b; }
       .record-card .note {
-        font-size: 14px;
+        font-size: 13px;
         color: var(--text-muted);
-        margin-top: 6px;
-        padding-top: 8px;
+        margin-top: 8px;
+        padding-top: 10px;
         border-top: 1px solid var(--border);
       }
       .record-card .card-actions {
-        margin-top: 10px;
-        padding-top: 10px;
+        margin-top: 12px;
+        padding-top: 12px;
         border-top: 1px solid var(--border);
       }
       .record-card .btn-undo {
@@ -179,17 +230,27 @@
         font-size: 13px;
         border-radius: var(--radius);
         border: 1px solid var(--border);
-        background: var(--surface);
+        background: #f1f5f9;
         color: var(--text-muted);
+        cursor: not-allowed;
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
+      }
+      .record-card .btn-undo:disabled { opacity: 1; }
+      .record-card .btn-undo.enabled {
+        background: var(--primary-dark);
+        color: #fff;
+        border-color: var(--primary-dark);
         cursor: pointer;
       }
-      .record-card .btn-undo:active { opacity: 0.9; }
-      .record-card .btn-undo:disabled { opacity: 0.6; cursor: not-allowed; }
+      .record-card .btn-undo.enabled:hover { background: var(--primary); border-color: var(--primary); }
+      .record-card .btn-undo.enabled:active { opacity: 0.9; }
       .record-card.record-card-undo {
         background: #f1f5f9;
         color: var(--text-muted);
       }
+      .record-card-undo .time { color: var(--text-muted); font-weight: normal; }
       .record-card-undo .device { color: var(--text-muted); }
+      .record-card-undo .device-status { color: var(--text-muted); font-weight: normal; }
       .record-card-undo .record-undo-tag {
         display: inline-block;
         margin-left: 8px;
@@ -308,9 +369,9 @@
       <div class="filters">
         <div class="filter-row">
           <label>登记日期</label>
-          <input type="date" id="filter-date-from" />
+          <input type="date" id="filter-date-from" placeholder="请选择开始日期" title="请选择开始日期" aria-label="开始日期" />
           <span class="filter-sep">至</span>
-          <input type="date" id="filter-date-to" />
+          <input type="date" id="filter-date-to" placeholder="请选择结束日期" title="请选择结束日期" aria-label="结束日期" />
         </div>
         <div class="filter-row">
           <input type="text" id="filter-bed" placeholder="床号" />
@@ -328,6 +389,7 @@
         <div class="record-list" id="record-list" style="display:none;"></div>
         <div class="load-more-wrap" id="load-more-wrap" style="display:none;">
           <button type="button" class="btn-load-more" id="btn-load-more">加载更多</button>
+          <p class="load-more-hint" id="load-more-hint"></p>
         </div>
         <div class="empty-state" id="empty-state" style="display:none;">
           <p>暂无登记记录</p>
@@ -354,6 +416,7 @@
     </nav>
 
     <script>
+      var undoWindowHours = {{ undo_window_hours|default(24)|int }};
       function escapeHtml(s) {
         if (s == null || s === undefined) return "";
         return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -424,6 +487,20 @@
         return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
       }
 
+      function canUndoRecord(r) {
+        if (!r || r.is_deleted) return false;
+        var created = r.created_at ? new Date(r.created_at).getTime() : 0;
+        if (!created) return false;
+        var now = Date.now();
+        var limitMs = (undoWindowHours || 24) * 60 * 60 * 1000;
+        return (now - created) < limitMs;
+      }
+      function terminalTagClass(val) {
+        if (!val || !String(val).trim()) return "";
+        var v = String(val).trim().toLowerCase();
+        if (v === "完成" || v === "已完成" || v === "done" || v === "是") return "done";
+        return "pending";
+      }
       function renderRecordCards(records) {
         listEl.innerHTML = "";
         (records || []).forEach(function (r) {
@@ -445,21 +522,30 @@
           var daily = r.daily_maintenance === "disinfect" ? "消毒" : (r.daily_maintenance === "clean" ? "清洁" : "");
           if (daily) extraParts.push(daily);
           var extraHtml = extraParts.length ? "<div class=\"extra\">" + extraParts.join(" · ") + "</div>" : "";
+          var eqStatusText = eqCond ? "设备状况：" + eqCond : (daily ? "日常保养：" + daily : "");
+          var statusLine = eqStatusText ? "<div class=\"device-status\">" + escapeHtml(eqStatusText) + "</div>" : "";
+          var terminalVal = r.terminal_disinfection ? (r.terminal_disinfection.length > 30 ? r.terminal_disinfection.slice(0, 30) + "…" : r.terminal_disinfection) : "";
+          var terminalTagClassVal = terminalTagClass(r.terminal_disinfection);
+          var terminalHtml = terminalVal ? "<span class=\"tag-terminal " + terminalTagClassVal + "\">终末消毒：" + escapeHtml(terminalVal) + "</span>" : "";
+          var canUndo = canUndoRecord(r);
+          var undoBtnClass = canUndo ? "btn-undo enabled" : "btn-undo";
+          var undoBtnDisabled = canUndo ? "" : " disabled";
           var actionsHtml = isUndo
             ? ""
-            : "<div class=\"card-actions\"><button type=\"button\" class=\"btn-undo\" data-id=\"" + (r.id || "") + "\">撤销</button></div>";
+            : "<div class=\"card-actions\"><button type=\"button\" class=\"" + undoBtnClass + "\" data-id=\"" + (r.id || "") + "\"" + undoBtnDisabled + ">撤销</button></div>";
           card.innerHTML =
             "<div class=\"time\">" + (regDate || formatTime(r.start_time)) + undoTag + "</div>" +
             "<div class=\"device\">" + deviceLine + " · " + escapeHtml(typeText) + "</div>" +
-            (r.user_name ? "<div class=\"meta\">维护人：" + escapeHtml(r.user_name) + "</div>" : "<div class=\"meta\">使用类型：" + escapeHtml(typeText) + "</div>") +
+            statusLine +
+            (r.user_name ? "<div class=\"meta\">维护人：" + escapeHtml(r.user_name) + "</div>" : "") +
             extraHtml +
-            (r.terminal_disinfection ? "<div class=\"note\">终末消毒：" + escapeHtml(r.terminal_disinfection.length > 40 ? r.terminal_disinfection.slice(0, 40) + "…" : r.terminal_disinfection) + "</div>" : "") +
+            (terminalHtml ? "<div class=\"card-row\">" + terminalHtml + "</div>" : "") +
             (r.note ? "<div class=\"note\">" + escapeHtml(r.note.length > 50 ? r.note.slice(0, 50) + "…" : r.note) + "</div>" : "") +
             actionsHtml;
           listEl.appendChild(card);
           if (!isUndo) {
             var btn = card.querySelector(".btn-undo");
-            if (btn) btn.addEventListener("click", function () { onUndo(r.id, card); });
+            if (btn && canUndo) btn.addEventListener("click", function () { onUndo(r.id, card); });
           }
         });
       }
@@ -534,6 +620,7 @@
           });
       }
 
+      var loadMoreHintEl = document.getElementById("load-more-hint");
       function showList(records, total) {
         loadingEl.style.display = "none";
         errorEl.style.display = "none";
@@ -544,18 +631,32 @@
           listEl.style.display = "none";
           loadMoreWrap.style.display = "none";
           countHint.textContent = "";
+          if (loadMoreHintEl) loadMoreHintEl.textContent = "";
           return;
         }
         emptyEl.style.display = "none";
         listEl.style.display = "flex";
+        var loaded = recordsLoaded.length;
+        var allDone = totalCount != null && loaded >= totalCount;
         if (totalCount != null) {
-          countHint.textContent = "共 " + totalCount + " 条，已加载 " + recordsLoaded.length + " 条";
+          countHint.textContent = "共 " + totalCount + " 条，已加载 " + loaded + " 条";
         } else {
-          countHint.textContent = "已加载 " + recordsLoaded.length + " 条";
+          countHint.textContent = "已加载 " + loaded + " 条";
         }
         renderRecordCards(recordsLoaded);
-        var hasMore = totalCount != null ? recordsLoaded.length < totalCount : recordsLoaded.length >= pageSize;
-        loadMoreWrap.style.display = hasMore ? "block" : "none";
+        var hasMore = totalCount != null ? loaded < totalCount : loaded >= pageSize;
+        loadMoreWrap.style.display = "block";
+        if (loadMoreHintEl) {
+          loadMoreHintEl.textContent = allDone ? "已加载 " + loaded + " 条（全部加载完成）" : "已加载 " + loaded + " 条";
+          loadMoreHintEl.className = "load-more-hint" + (allDone ? " all-done" : "");
+        }
+        var btn = document.getElementById("btn-load-more");
+        if (btn) {
+          btn.style.display = hasMore ? "inline-block" : "none";
+          btn.classList.remove("loading");
+          btn.disabled = false;
+          btn.textContent = "加载更多";
+        }
       }
 
       function showError(msg, showLoginLink) {
@@ -592,12 +693,17 @@
       }
 
       function loadRecords(append) {
-        if (!append) showLoading();
+        var btnApply = document.getElementById("btn-apply");
+        if (!append) {
+          showLoading();
+          if (btnApply) { btnApply.classList.add("loading"); btnApply.disabled = true; }
+        }
         var offset = append ? recordsLoaded.length : 0;
         var listUrl = "/api/usage?" + buildListParams(offset);
         if (append) {
           btnLoadMore.disabled = true;
           btnLoadMore.textContent = "加载中...";
+          btnLoadMore.classList.add("loading");
         }
         fetch(listUrl, { headers: authHeaders() })
           .then(function (res) {
@@ -613,7 +719,9 @@
             if (append) {
               btnLoadMore.disabled = false;
               btnLoadMore.textContent = "加载更多";
+              btnLoadMore.classList.remove("loading");
             }
+            if (btnApply) { btnApply.classList.remove("loading"); btnApply.disabled = false; }
             if (!data || !Array.isArray(data)) return;
             var nextList = append ? recordsLoaded.concat(data) : data;
             if (!append) {
@@ -636,13 +744,15 @@
             if (append) {
               btnLoadMore.disabled = false;
               btnLoadMore.textContent = "加载更多";
+              btnLoadMore.classList.remove("loading");
             }
+            if (btnApply) { btnApply.classList.remove("loading"); btnApply.disabled = false; }
             if (e.message !== "未登录") showError(e.message || "加载失败，请稍后重试");
           });
       }
 
       function loadMore() {
-        if (recordsLoaded.length < pageSize && totalCount !== null) return;
+        if (totalCount != null && recordsLoaded.length >= totalCount) return;
         loadRecords(true);
       }
 

@@ -35,8 +35,8 @@
   - 自动化：`test_device_create_success`、`test_device_create_duplicate_code`、`test_device_list_optional_auth`、`test_device_suggest`、`test_device_get_by_id`、`test_device_count`、`test_device_export_csv_success`。
 - **数据校验**
   - 设备：编号/名称/科室为空 → 400，提示必填。
-  - 登记：床号、ID 号必填（H5 前端校验）；设备不存在 → 404。
-  - 自动化：`test_device_create_empty_code`、`test_device_create_empty_name`、`test_usage_create_invalid_device`。
+  - 登记：**床号、ID 号为选填**（H5 不校验必填，可空提交）；设备不存在 → 404。
+  - 自动化：`test_device_create_empty_code`、`test_device_create_empty_name`、`test_usage_create_invalid_device`、`test_usage_create_without_bed_id_optional`。
 - **权限控制**
   - 设备创建/更新/导出、用户列表、审计日志、使用记录导出：需管理员（device_admin 或 sys_admin）。
   - 使用记录列表/总数/撤销：需登录，本人仅能撤销自己的记录。
@@ -74,7 +74,7 @@
 - **健康与根路径**：`GET /health` → 200, `{"status":"ok"}`；`GET /` → 200, `{"message": ...}`。
 - **认证**：`POST /api/auth/login` Body `{username, password}` → 200 + `{access_token, token_type}`；空用户名/密码 → 400；错误密码 → 401。`GET /api/auth/me` Header `Authorization: Bearer <token>` → 200 + 用户信息；无 Token → 401。
 - **设备**：`POST /api/devices` 需管理员，Body 必填 device_code、name、dept、status；`GET /api/devices`、`GET /api/devices/suggest`、`GET /api/devices/count`、`GET /api/devices/{id}`、`GET /api/devices/{id}/qrcode`、`PATCH /api/devices/{id}`、`GET /api/devices/export` 参数与返回见 OpenAPI，关键状态码已在用例中覆盖。
-- **使用记录**：`POST /api/usage` 需登录，Body 含 device_code、usage_type、bed_number、id_number 等；`GET /api/usage`、`GET /api/usage/count` 支持 device_code、registration_date_from/to、bed_number 等；`POST /api/usage/{id}/undo` 需登录且本人；`GET /api/usage/export` 需管理员。
+- **使用记录**：`POST /api/usage` 需登录，Body 含 device_code、usage_type；**bed_number、id_number 为选填（可省略或 null）**；equipment_condition、daily_maintenance 为 normal/abnormal、clean/disinfect。`GET /api/usage`、`GET /api/usage/count` 支持 device_code、registration_date_from/to、bed_number 等；`POST /api/usage/{id}/undo` 需登录且本人；`GET /api/usage/export` 需管理员。
 - **用户/字典/审计**：`GET /api/users`、`GET /api/users/count` 需管理员；`GET /api/dict` 可选 dict_type；`POST /api/dict` 需管理员；`GET /api/audit-logs` 需管理员。
 
 ### 4.2 幂等性与兼容性
@@ -89,6 +89,26 @@
 - **增删改查准确性**：通过接口测试覆盖——创建设备后列表/详情可查；创建登记后列表/count/筛选可查；撤销后 is_deleted 为 true，列表默认不展示（include_deleted 可含）。
 - **完整性/一致性**：usage_records.device_code 外键关联 devices.device_code；usage_records.user_id 关联 users.id；设备软删除/停用后，登记列表仍可按 device_code 查到记录，设备详情接口 404。
 - **无冗余/脏数据**：测试夹具在用例结束后删除创建的测试设备及关联使用记录，避免长期堆积；可定期抽查 DB 中无 TEST_ 前缀的残留。
+
+---
+
+## 5.1 近期优化验证清单（登记页 + 前后端）
+
+以下针对「床号/ID 号选填」「设备状况/日常保养单选打钩」「必填项红色 \*」等优化的验证方式。
+
+| 项 | 验证内容 | 自动化 | 手工步骤 |
+|----|----------|--------|----------|
+| 床号、ID 号选填 | 不填床号/ID 号可提交，接口 201，返回/库中该两字段为 null | `test_usage_create_without_bed_id_optional` | 打开 H5 登记页，床号/ID 号留空，其他必填填齐后提交 → 应成功；后台或接口查该条记录 bed_number、id_number 为空 |
+| 床号、ID 号占位 | 输入框占位为「选填」，无红色 \* | `test_h5_scan_form_optimizations`（含「选填」） | 打开 `/h5/scan`，确认床号、ID 号旁无 \*，placeholder 为「选填」 |
+| 设备状况/日常保养 | 标题无 \*；单选题，选中项为打钩样式（✓） | 同上（含「设备状况」「日常保养」及 normal/abnormal、clean/disinfect） | 确认两项为单选，选中后显示勾选样式；提交后接口返回 equipment_condition、daily_maintenance 正确 |
+| 必填项红色 \* | 登记日期、开机时间、关机时间等必填项 label 有 \* | 页面结构在 scan.html 中 `field required` | 目视：仅必填项有 \* |
+| 带床号/ID 号提交 | 填写床号、ID 号时仍正常落库 | `test_usage_create_success`、`test_usage_list_filter_by_bed` | 填写床号、ID 号提交 → 列表按床号筛选可查到 |
+
+运行相关自动化用例（在 backend 目录下）：
+
+```bash
+poetry run pytest tests/test_usage.py tests/test_pages.py -v
+```
 
 ---
 

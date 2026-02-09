@@ -55,7 +55,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=_DOCS_TITLE,
         description=_DOCS_DESCRIPTION,
-        version="0.1.0",
+        version="0.1.1",
         docs_url=None,
         redoc_url=None,
     )

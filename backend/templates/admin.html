@@ -183,7 +183,7 @@
         font-weight: 600;
         font-size: 13px;
       }
-      tbody tr:hover { background: var(--primary-bg); }
+      tbody tr:hover { background: #f5f7fa; }
       tbody tr.inactive-row { background: #f1f5f9; color: var(--text-muted); }
       .btn-disable { background: #b91c1c !important; color: #fff !important; padding: 6px 12px !important; font-size: 13px !important; border-radius: var(--radius-sm) !important; }
       .btn-enable { background: #059669 !important; color: #fff !important; padding: 6px 12px !important; font-size: 13px !important; border-radius: var(--radius-sm) !important; }
@@ -231,17 +231,177 @@
       .stat-card .value { font-size: 24px; font-weight: 600; color: var(--primary-dark); }
       .stat-card-clickable { cursor: pointer; transition: box-shadow 0.2s, background 0.2s; }
       .stat-card-clickable:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); background: var(--bg-elevated); }
-      .dict-table { min-width: 520px; }
+      .dict-table { min-width: 520px; border-collapse: collapse; width: 100%; }
       .dict-table td:first-child { font-weight: 500; color: var(--text); }
+      .dict-table th, .dict-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
+      .dict-table tbody tr:nth-child(odd) { background: #fff; }
+      .dict-table tbody tr:nth-child(even) { background: #f8fafc; }
+      .dict-table tbody tr:hover td { background: #f5f7fa !important; }
       .dict-table .dict-row-deleted { background: #f8fafc; color: var(--text-muted); }
       .dict-table button { padding: 6px 10px; font-size: 12px; margin-right: 4px; }
       .dict-table .dict-edit-input { width: 120px; padding: 4px 8px; margin-right: 6px; }
-      .dict-desc { color: var(--text-muted); margin: 0 0 12px; font-size: 14px; }
-      .device-show-deleted-wrap { margin-left: 12px; font-weight: 500; color: var(--text); }
-      .device-show-deleted-wrap input { margin-right: 6px; }
-      tbody tr.device-row-deleted { background: #f8fafc; color: var(--text-muted); }
+      .dict-desc { color: var(--text-muted); margin: 4px 0 14px; font-size: 14px; }
+      .dict-pill-status {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 500;
+      }
+      .dict-pill-status-on { background: #22c55e; color: #fff; }
+      .dict-pill-status-off { background: #94a3b8; color: #fff; }
+      .dict-pill-deleted {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 500;
+        background: #e5e7eb;
+        color: #4b5563;
+      }
+      .device-filter-row { flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+      .device-filter-row .device-actions-group { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+      .device-flag-filters {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #f1f5f9;
+      }
+      .device-show-deleted-wrap,
+      .device-show-inactive-wrap {
+        font-weight: 500;
+        color: var(--text);
+        margin: 0;
+      }
+      .device-show-deleted-wrap input,
+      .device-show-inactive-wrap input { margin-right: 6px; }
+      #table-devices tbody tr:nth-child(odd) { background: #fff; }
+      #table-devices tbody tr:nth-child(even) { background: #f8fafc; }
+      #table-devices th:first-child,
+      #table-devices td.device-code-cell { text-align: center; }
+      tbody tr.device-row-deleted { background: #f1f5f9 !important; color: var(--text-muted); }
+      #table-devices tbody tr.inactive-row { background: #f1f5f9 !important; }
       .device-edit-input { width: 90px; padding: 4px 8px; margin-right: 4px; }
       .device-edit-select { min-width: 80px; padding: 4px 8px; margin-right: 4px; }
+      #table-devices tbody tr:hover { background: #f5f7fa; }
+      #table-devices td button { margin-right: 6px; }
+      .device-status-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 500;
+      }
+      .device-status-pill-ok { background: #ecfdf5; color: #16a34a; }
+      .device-status-pill-warn { background: #fef3c7; color: #92400e; }
+      .device-status-pill-bad { background: #fee2e2; color: #b91c1c; }
+      .device-active-pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.4;
+        font-weight: 500;
+      }
+      .device-active-pill-on { background: #22c55e; color: #fff; font-weight: 600; }
+      .device-active-pill-off { background: #94a3b8; color: #fff; font-weight: 500; }
+      .device-qrcode-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--link-color, #2563eb);
+        padding: 0;
+      }
+      .device-qrcode-link:hover { text-decoration: underline; }
+      .device-qrcode-link .qr-icon {
+        width: 14px;
+        height: 14px;
+        border: 2px solid currentColor;
+        border-radius: 2px;
+        box-sizing: border-box;
+      }
+      .device-qrcode-disabled {
+        font-size: 12px;
+        color: #9ca3af;
+        background: #f3f4f6;
+        border-radius: 999px;
+        padding: 2px 10px;
+        display: inline-block;
+      }
+      .device-qr-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .device-qr-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+      }
+      .device-qr-modal-box {
+        position: relative;
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .device-qr-modal-box img { max-width: 280px; max-height: 280px; display: block; }
+      .device-qr-modal-box button { align-self: center; }
+
+      /* 设备管理表格：独立横向滚动、底部固定滚动条（与使用记录查询一致） */
+      .device-table-scroll-outer { position: relative; margin: 0 -4px 12px; }
+      .device-table-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid var(--border);
+        border-bottom: none;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        background: var(--surface);
+        max-width: 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .device-table-wrap::-webkit-scrollbar { display: none; }
+      .device-table-h-scroll {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-top: 1px solid #e2e8f0;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        z-index: 4;
+        -webkit-overflow-scrolling: touch;
+      }
+      .device-table-h-scroll-inner { height: 1px; pointer-events: none; }
+      .device-table-h-scroll::-webkit-scrollbar { height: 10px; }
+      .device-table-h-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 5px; }
+      .device-table-h-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+      .device-table-h-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      .device-table-h-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+      #table-devices { margin-bottom: 0; }
 
       /* 表头列宽拖拽：固定表头、不换行，列宽调整后可完整展示内容 */
       .resizable-cols { table-layout: fixed; }
@@ -267,25 +427,195 @@
       body.col-resizing { cursor: col-resize; user-select: none; }
       .loading-cell { text-align: center; color: var(--text-muted); padding: 24px !important; }
 
-      /* 使用记录查询：表格横向滚动、筛选区小屏适配 */
+      /* 使用记录查询：表格独立横向滚动、固定左侧必选列、斑马纹、行高与悬停 */
+      .usage-table-scroll-outer { position: relative; margin: 0 -4px 12px; }
       .usage-table-wrap {
         overflow-x: auto;
+        overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
-        margin: 0 -4px 12px;
+        margin: 0 0 0 0;
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        border-bottom: none;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
         background: var(--surface);
+        max-width: 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
-      #table-usage { min-width: 1100px; width: max-content; margin-bottom: 0; }
-      #table-usage th, #table-usage td { min-width: 60px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .usage-table-wrap::-webkit-scrollbar { display: none; }
+      .usage-table-h-scroll {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-top: 1px solid #e2e8f0;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        z-index: 4;
+        -webkit-overflow-scrolling: touch;
+      }
+      .usage-table-h-scroll-inner { height: 1px; pointer-events: none; }
+      .usage-table-h-scroll::-webkit-scrollbar { height: 10px; }
+      .usage-table-h-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 5px; }
+      .usage-table-h-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+      .usage-table-h-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      .usage-table-h-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+      /* 审计日志表格：复用与使用记录类似的表格视觉 */
+      .audit-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+      }
+      .audit-filters .filter-group,
+      .audit-filters .filter-group-block {
+        margin-bottom: 4px;
+      }
+      .audit-actions {
+        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .audit-table-scroll-outer { position: relative; margin: 0 -4px 12px; }
+      .audit-table-wrap {
+        border: 1px solid var(--border);
+        border-bottom: none;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        background: var(--surface);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+      .audit-table-h-scroll {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-top: 1px solid #e2e8f0;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        z-index: 4;
+        -webkit-overflow-scrolling: touch;
+      }
+      .audit-table-h-scroll-inner { height: 1px; pointer-events: none; }
+      .audit-table-h-scroll::-webkit-scrollbar { height: 10px; }
+      .audit-table-h-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 5px; }
+      .audit-table-h-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+      .audit-table-h-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      .audit-table-h-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+      #table-audit {
+        min-width: 720px;
+        width: max-content;
+        border-collapse: collapse;
+        margin-bottom: 0;
+      }
+      #table-audit th,
+      #table-audit td {
+        padding: 10px 14px;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      #table-audit th:nth-child(1) { width: 170px; }
+      #table-audit th:nth-child(2) { width: 90px; }
+      #table-audit th:nth-child(3),
+      #table-audit td:nth-child(3),
+      #table-audit th:nth-child(4),
+      #table-audit td:nth-child(4) {
+        white-space: nowrap;
+        word-break: break-word;
+      }
+      #table-audit tbody tr:nth-child(odd) { background: #fff; }
+      #table-audit tbody tr:nth-child(even) { background: #f8fafc; }
+      #table-audit tbody tr:hover td { background: #f5f7fa !important; }
+      .audit-tag-create {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        background: #dcfce7;
+        color: #166534;
+        margin-right: 6px;
+      }
+      .audit-tag-export {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        margin-right: 6px;
+      }
+      .audit-note-empty { color: #9ca3af; }
+      .audit-highlight {
+        background: #fef08a;
+        padding: 0 1px;
+      }
+      #table-usage { min-width: 1100px; width: max-content; margin-bottom: 0; border-collapse: collapse; }
+      #table-usage th, #table-usage td { min-width: 60px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; height: 48px; padding: 12px 16px; vertical-align: middle; }
       #table-usage th:nth-child(1), #table-usage td:nth-child(1) { min-width: 90px; }
+      #table-usage th:nth-child(2), #table-usage td:nth-child(2) { min-width: 140px; }
       #table-usage th:nth-child(3), #table-usage td:nth-child(3) { min-width: 100px; }
-      #table-usage th:nth-child(14), #table-usage td:nth-child(14) { max-width: 200px; white-space: normal; word-break: break-all; }
+      #table-usage th:nth-child(4), #table-usage td:nth-child(4) { min-width: 80px; }
+      #table-usage th:last-child, #table-usage td:last-child { max-width: 200px; white-space: normal; word-break: break-all; }
+      /* 空值显示为浅灰色「无数据」 */
+      #table-usage td.cell-empty { color: #999999; }
+      /* 行边框与悬停高亮 */
+      #table-usage tbody tr { border-bottom: 1px solid #EEEEEE; }
+      #table-usage tbody tr:hover td { background: #F5F7FA !important; }
+      /* 固定左侧四列：登记日期、实际登记时间、设备、类型 */
+      #table-usage th:nth-child(1), #table-usage th:nth-child(2), #table-usage th:nth-child(3), #table-usage th:nth-child(4) { position: sticky; z-index: 3; background: var(--primary-bg); box-shadow: 2px 0 4px rgba(0,0,0,0.04); }
+      #table-usage th:nth-child(1) { left: 0; }
+      #table-usage th:nth-child(2) { left: 90px; }
+      #table-usage th:nth-child(3) { left: 230px; }
+      #table-usage th:nth-child(4) { left: 330px; }
+      #table-usage td:nth-child(1), #table-usage td:nth-child(2), #table-usage td:nth-child(3), #table-usage td:nth-child(4) { position: sticky; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.04); }
+      #table-usage td:nth-child(1) { left: 0; }
+      #table-usage td:nth-child(2) { left: 90px; }
+      #table-usage td:nth-child(3) { left: 230px; }
+      #table-usage td:nth-child(4) { left: 330px; }
+      #table-usage tbody tr:nth-child(odd) td:nth-child(1),
+      #table-usage tbody tr:nth-child(odd) td:nth-child(2),
+      #table-usage tbody tr:nth-child(odd) td:nth-child(3),
+      #table-usage tbody tr:nth-child(odd) td:nth-child(4) { background: var(--surface); }
+      #table-usage tbody tr:nth-child(even) td { background: #f8fafc; }
+      #table-usage tbody tr:nth-child(even) td:nth-child(1),
+      #table-usage tbody tr:nth-child(even) td:nth-child(2),
+      #table-usage tbody tr:nth-child(even) td:nth-child(3),
+      #table-usage tbody tr:nth-child(even) td:nth-child(4) { background: #e8f5f3; }
+      #table-usage tbody tr:hover td:nth-child(1),
+      #table-usage tbody tr:hover td:nth-child(2),
+      #table-usage tbody tr:hover td:nth-child(3),
+      #table-usage tbody tr:hover td:nth-child(4) { background: #F5F7FA !important; }
       .usage-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
       .usage-filters label { white-space: nowrap; color: var(--text); font-weight: 500; font-size: 13px; }
       .usage-filters input, .usage-filters select { min-width: 0; }
       .usage-filters .filter-group { display: inline-flex; align-items: center; gap: 6px; }
-      .usage-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+      .usage-filters .filter-group-block { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .usage-filters .filter-group-block label { margin-right: 4px; }
+      .usage-more-toggle { color: var(--primary); cursor: pointer; font-size: 13px; user-select: none; }
+      .usage-more-toggle:hover { text-decoration: underline; }
+      .usage-more-filters { display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .usage-more-filters.visible { display: flex; }
+      .usage-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+      .usage-actions .btn-query-primary { background: #1890FF; color: #fff; border: none; padding: 12px 24px; font-size: 15px; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; }
+      .usage-actions .btn-query-primary:hover { background: #40a9ff; }
+      .usage-actions .btn-export-secondary { background: #fff; color: var(--text); border: 1px solid var(--border); padding: 10px 20px; font-size: 14px; border-radius: var(--radius-sm); cursor: pointer; }
+      .usage-actions .btn-export-secondary:hover { border-color: #1890FF; color: #1890FF; }
+      .usage-pagination-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+      .usage-pagination-row .usage-page-size { min-width: 100px; }
       @media (max-width: 900px) {
         .admin-main { padding: 12px; }
         .usage-filters .filter-group { flex: 1 1 140px; min-width: 120px; }
@@ -376,36 +706,59 @@
         <div id="panel-devices" class="admin-panel">
           <h2>设备管理</h2>
           <div class="card">
-            <div class="form-row flex mb">
-              <label>编号</label><input id="new-code" placeholder="设备编号" />
-              <label>名称</label><input id="new-name" placeholder="设备名称" />
-              <label>科室</label><input id="new-dept" placeholder="科室" />
-              <button id="btn-add">新增设备</button>
-              <button type="button" id="btn-device-export-csv" class="secondary">导出 CSV</button>
-              <button type="button" id="btn-device-export-xlsx" class="secondary">导出 Excel</button>
-              <label class="device-show-deleted-wrap"><input type="checkbox" id="device-deleted-only" /> 只显示已删除</label>
-              <label class="device-show-inactive-wrap"><input type="checkbox" id="device-inactive-only" /> 只显示已停用</label>
-            </div>
-            <div class="flex mb">
-              <label>搜索</label>
-              <input id="device-filter-q" placeholder="设备名称或编号" />
-              <label>科室</label>
-              <input id="device-filter-dept" list="device-dept-options" placeholder="按科室筛选" />
+            <p class="mb device-tip" style="color:var(--text-muted); font-size:13px;">
+              💡 状态表示设备运行状态（如可用/故障），启用表示是否允许登记使用；停用或已删除的设备其二维码列将显示“无权限查看”。
+            </p>
+            <div class="device-filter-row flex mb">
+              <label>编号</label><input id="new-code" placeholder="输入设备编号" />
+              <label>名称</label><input id="new-name" placeholder="输入设备名称" />
+              <label>科室</label><input id="new-dept" placeholder="输入科室筛选" list="device-dept-options" />
               <datalist id="device-dept-options"></datalist>
+              <div class="device-flag-filters">
+                <label class="device-show-deleted-wrap"><input type="checkbox" id="device-deleted-only" /> 只显示已删除</label>
+                <label class="device-show-inactive-wrap"><input type="checkbox" id="device-inactive-only" /> 只显示已停用</label>
+              </div>
               <button type="button" id="btn-device-query">查询</button>
               <button type="button" id="btn-device-reset" class="secondary">清空筛选</button>
+              <span class="device-actions-group">
+                <button id="btn-add">新增设备</button>
+                <button type="button" id="btn-device-export-csv" class="secondary">导出 CSV</button>
+                <button type="button" id="btn-device-export-xlsx" class="secondary">导出 Excel</button>
+              </span>
             </div>
             <div class="msg" id="device-msg"></div>
-            <table id="table-devices" class="resizable-cols">
-              <thead>
-                <tr><th>编号</th><th>名称</th><th>科室</th><th>状态</th><th>启用</th><th>二维码</th><th>操作</th></tr>
-              </thead>
-              <tbody id="device-list"></tbody>
-            </table>
+            <div class="device-table-scroll-outer">
+              <div class="device-table-wrap" id="device-table-wrap" role="region" aria-label="设备表格，可左右滑动查看全部列">
+                <table id="table-devices" class="resizable-cols">
+                  <thead>
+                    <tr><th>编号</th><th>名称</th><th>科室</th><th>状态</th><th>启用</th><th>二维码</th><th>操作</th></tr>
+                  </thead>
+                  <tbody id="device-list"></tbody>
+                </table>
+              </div>
+              <div class="device-table-h-scroll" id="device-table-h-scroll" role="scrollbar" aria-label="表格横向滚动条">
+                <div class="device-table-h-scroll-inner" id="device-table-h-scroll-inner"></div>
+              </div>
+            </div>
             <div class="pagination-wrap" id="device-pagination">
               <span id="device-page-info">共 0 条</span>
+              <span class="filter-group" style="margin-left:8px;">
+                <label for="device-page-size">每页</label>
+                <select id="device-page-size" aria-label="每页显示条数">
+                  <option value="20" selected>20 条</option>
+                  <option value="50">50 条</option>
+                  <option value="100">100 条</option>
+                </select>
+              </span>
               <button type="button" id="device-prev" class="secondary">上一页</button>
               <button type="button" id="device-next" class="secondary">下一页</button>
+            </div>
+            <div id="device-qr-modal" class="device-qr-modal" role="dialog" aria-modal="true" aria-label="二维码预览" style="display:none;">
+              <div class="device-qr-modal-backdrop"></div>
+              <div class="device-qr-modal-box">
+                <img id="device-qr-modal-img" src="" alt="设备二维码" />
+                <button type="button" id="device-qr-modal-close" class="secondary">关闭</button>
+              </div>
             </div>
           </div>
         </div>
@@ -434,31 +787,56 @@
             <div class="usage-filters mb">
               <span class="filter-group"><label>设备</label><input id="filter-device" list="device-options" placeholder="名称或编号" /></span>
               <datalist id="device-options"></datalist>
-              <span class="filter-group"><label>科室</label><input id="filter-dept" list="dept-options" placeholder="科室" /></span>
-              <datalist id="dept-options"></datalist>
-              <span class="filter-group"><label>登记日期起</label><input type="date" id="filter-reg-from" /></span>
-              <span class="filter-group"><label>登记日期止</label><input type="date" id="filter-reg-to" /></span>
-              <span class="filter-group"><label>床号</label><input id="filter-bed" placeholder="床号" /></span>
-              <span class="filter-group"><label>开始日期</label><input type="date" id="filter-from" /></span>
-              <span class="filter-group"><label>结束日期</label><input type="date" id="filter-to" /></span>
+              <span class="filter-group-block">
+                <label>登记日期范围</label>
+                <input type="date" id="filter-reg-from" aria-label="登记日期起" />
+                <span style="color:var(--text-muted);">至</span>
+                <input type="date" id="filter-reg-to" aria-label="登记日期止" />
+              </span>
+              <span class="filter-group-block">
+                <label>使用日期范围</label>
+                <input type="date" id="filter-from" aria-label="使用开始日期" />
+                <span style="color:var(--text-muted);">至</span>
+                <input type="date" id="filter-to" aria-label="使用结束日期" />
+              </span>
+              <span class="usage-more-toggle" id="usage-more-toggle" role="button" tabindex="0">▼ 展开更多筛选</span>
+              <span class="usage-more-filters" id="usage-more-filters">
+                <span class="filter-group"><label>科室</label><input id="filter-dept" list="dept-options" placeholder="科室" /></span>
+                <datalist id="dept-options"></datalist>
+                <span class="filter-group"><label>床号</label><input id="filter-bed" placeholder="床号" /></span>
+              </span>
             </div>
             <div class="usage-actions">
-              <button id="btn-query">查询</button>
-              <button id="btn-export" class="secondary">导出 CSV</button>
-              <button id="btn-export-xlsx" class="secondary">导出 Excel</button>
-              <button id="btn-export-pdf" class="secondary">导出 PDF</button>
+              <button type="button" id="btn-query" class="btn-query-primary">查询</button>
+              <button type="button" id="btn-export" class="btn-export-secondary">导出 CSV</button>
+              <button type="button" id="btn-export-xlsx" class="btn-export-secondary">导出 Excel</button>
+              <button type="button" id="btn-export-pdf" class="btn-export-secondary">导出 PDF</button>
             </div>
             <div class="msg" id="usage-msg"></div>
-            <div class="usage-table-wrap" role="region" aria-label="使用记录表格，可左右滑动查看全部列">
-              <table id="table-usage" class="resizable-cols">
-                <thead>
-                  <tr><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>维护人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
-                </thead>
-                <tbody id="usage-list"></tbody>
-              </table>
+            <div class="usage-table-scroll-outer">
+              <div class="usage-table-wrap" id="usage-table-wrap" role="region" aria-label="使用记录表格，可左右滑动查看全部列">
+                <table id="table-usage" class="resizable-cols">
+                  <thead>
+                    <tr id="usage-thead-row"><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>维护人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
+                  </thead>
+                  <tbody id="usage-list"></tbody>
+                </table>
+              </div>
+              <div class="usage-table-h-scroll" id="usage-table-h-scroll" role="scrollbar" aria-label="表格横向滚动条">
+                <div class="usage-table-h-scroll-inner" id="usage-table-h-scroll-inner"></div>
+              </div>
             </div>
-            <div class="pagination-wrap" id="usage-pagination">
+            <div class="usage-pagination-row" id="usage-pagination">
               <span id="usage-page-info">共 0 条</span>
+              <span class="filter-group">
+                <label for="usage-page-size">每页</label>
+                <select id="usage-page-size" class="usage-page-size" aria-label="每页显示条数">
+                  <option value="20" selected>20 条</option>
+                  <option value="50">50 条</option>
+                  <option value="100">100 条</option>
+                  <option value="200">200 条</option>
+                </select>
+              </span>
               <button type="button" id="usage-prev" class="secondary">上一页</button>
               <button type="button" id="usage-next" class="secondary">下一页</button>
             </div>
@@ -504,30 +882,59 @@
         <div id="panel-audit" class="admin-panel">
           <h2>审计日志</h2>
           <div class="card">
-            <div class="flex mb">
-              <label>操作类型</label>
-              <select id="audit-filter-action">
-                <option value="">全部</option>
-                <option value="device.create">设备-新增</option>
-                <option value="device.update">设备-更新</option>
-                <option value="device.delete">设备-删除</option>
-                <option value="device.restore">设备-恢复</option>
-                <option value="usage.export">使用记录-导出</option>
-                <option value="auth.login">登录</option>
-              </select>
-              <label>开始时间</label>
-              <input type="datetime-local" id="audit-filter-from" />
-              <label>结束时间</label>
-              <input type="datetime-local" id="audit-filter-to" />
-              <button id="btn-audit-query">查询</button>
+            <div class="audit-filters mb">
+              <span class="filter-group">
+                <label>操作类型</label>
+                <select id="audit-filter-action">
+                  <option value="">全部类型</option>
+                  <option value="device.create">设备-新增</option>
+                  <option value="device.update">设备-更新</option>
+                  <option value="device.delete">设备-删除</option>
+                  <option value="device.restore">设备-恢复</option>
+                  <option value="usage.export">使用记录-导出</option>
+                  <option value="auth.login">登录</option>
+                </select>
+              </span>
+              <span class="filter-group">
+                <label>类型搜索</label>
+                <input id="audit-action-search" placeholder="输入关键字筛选类型" />
+              </span>
+              <span class="filter-group-block">
+                <label>时间范围</label>
+                <input type="datetime-local" id="audit-filter-from" aria-label="开始时间" />
+                <span style="color:var(--text-muted);">至</span>
+                <input type="datetime-local" id="audit-filter-to" aria-label="结束时间" />
+              </span>
+              <span class="filter-group">
+                <label>快捷日期</label>
+                <button type="button" id="audit-quick-today" class="secondary">今日</button>
+                <button type="button" id="audit-quick-week" class="secondary">本周</button>
+                <button type="button" id="audit-quick-month" class="secondary">本月</button>
+              </span>
+              <span class="filter-group">
+                <label>关键词</label>
+                <input id="audit-keyword" placeholder="按操作人 / 内容 / 备注搜索" />
+              </span>
+            </div>
+            <div class="usage-actions audit-actions">
+              <button type="button" id="btn-audit-query" class="btn-query-primary">查询</button>
+              <button type="button" id="btn-audit-export-csv" class="btn-export-secondary">导出 CSV</button>
+              <button type="button" id="btn-audit-export-xlsx" class="btn-export-secondary">导出 Excel</button>
             </div>
             <div class="msg" id="audit-msg"></div>
-            <table id="table-audit" class="resizable-cols">
-              <thead>
-                <tr><th>时间</th><th>操作人</th><th>操作说明</th><th>备注</th></tr>
-              </thead>
-              <tbody id="audit-list"></tbody>
-            </table>
+            <div class="audit-table-scroll-outer">
+              <div class="audit-table-wrap" id="audit-table-wrap" role="region" aria-label="审计日志表格，可左右滑动查看全部列">
+                <table id="table-audit" class="resizable-cols">
+                  <thead>
+                    <tr><th>时间</th><th>操作人</th><th>操作说明</th><th>备注</th></tr>
+                  </thead>
+                  <tbody id="audit-list"></tbody>
+                </table>
+              </div>
+              <div class="audit-table-h-scroll" id="audit-table-h-scroll" role="scrollbar" aria-label="表格横向滚动条">
+                <div class="audit-table-h-scroll-inner" id="audit-table-h-scroll-inner"></div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -623,6 +1030,8 @@
         for (var i = 0; i < ths.length; i++) {
           (function (colIndex) {
             var th = ths[colIndex];
+            var existing = th.querySelector(".col-resize-handle");
+            if (existing) existing.remove();
             var handle = document.createElement("div");
             handle.className = "col-resize-handle";
             handle.setAttribute("aria-label", "调整列宽");
@@ -775,17 +1184,19 @@
       }
 
       var devicePage = 0;
-      var devicePageSize = 100;
+      var devicePageSize = 20;
       var deviceTotal = 0;
       async function loadDevices() {
         var tbodyEl = document.getElementById("device-list");
         if (tbodyEl) tbodyEl.innerHTML = "<tr><td colspan=\"7\" class=\"loading-cell\">加载中...</td></tr>";
+        devicePageSize = parseInt(document.getElementById("device-page-size") && document.getElementById("device-page-size").value, 10) || devicePageSize;
         const deletedOnly = document.getElementById("device-deleted-only") && document.getElementById("device-deleted-only").checked;
         const inactiveOnly = document.getElementById("device-inactive-only") && document.getElementById("device-inactive-only").checked;
-        const qEl = document.getElementById("device-filter-q");
-        const deptEl = document.getElementById("device-filter-dept");
-        const q = (qEl && qEl.value || "").trim();
-        const dept = (deptEl && deptEl.value || "").trim();
+        const newCodeEl = document.getElementById("new-code");
+        const newNameEl = document.getElementById("new-name");
+        const newDeptEl = document.getElementById("new-dept");
+        const q = (newCodeEl && newCodeEl.value || "").trim() || (newNameEl && newNameEl.value || "").trim();
+        const dept = (newDeptEl && newDeptEl.value || "").trim();
         const offset = devicePage * devicePageSize;
         let listUrl = "/api/devices?include_inactive=1&limit=" + devicePageSize + "&offset=" + offset;
         let countUrl = "/api/devices/count?include_inactive=1";
@@ -818,9 +1229,17 @@
           if (d.is_deleted) tr.classList.add("device-row-deleted");
           const activeText = d.is_active ? "启用" : "停用";
           const activeClass = d.is_active ? "" : " inactive-row";
+          var statusText = String(statusLabel(d.status));
+          var statusClass = "device-status-pill";
+          if (/可用|正常/.test(statusText)) statusClass += " device-status-pill-ok";
+          else if (/故障|维修/.test(statusText)) statusClass += " device-status-pill-bad";
+          else statusClass += " device-status-pill-warn";
+          const activePill = d.is_active
+            ? "<span class=\"device-active-pill device-active-pill-on\">启用</span>"
+            : "<span class=\"device-active-pill device-active-pill-off\">停用</span>";
           const qrLink = (d.is_active && !d.is_deleted)
-            ? "<a href=\"/api/devices/" + d.id + "/qrcode\" target=\"_blank\">查看</a>"
-            : "—";
+            ? "<button type=\"button\" class=\"device-qrcode-link\" data-id=\"" + d.id + "\" title=\"点击查看二维码\"><span class=\"qr-icon\" aria-hidden=\"true\"></span><span class=\"qr-text\">二维码</span></button>"
+            : "<span class=\"device-qrcode-disabled\">无权限查看</span>";
           var actionParts = [];
           if (!d.is_deleted) {
             actionParts.push(d.is_active
@@ -831,7 +1250,14 @@
           } else {
             actionParts.push("<button type=\"button\" class=\"btn-restore-device\" data-id=\"" + d.id + "\">恢复</button>");
           }
-          tr.innerHTML = "<td class=\"device-code-cell\">" + escapeHtml(d.device_code) + "</td><td class=\"device-name-cell\">" + escapeHtml(d.name || "") + "</td><td class=\"device-dept-cell\">" + escapeHtml(d.dept || "") + "</td><td class=\"device-status-cell\">" + escapeHtml(String(statusLabel(d.status))) + "</td><td>" + activeText + "</td><td>" + qrLink + "</td><td>" + actionParts.join(" ") + "</td>";
+          tr.innerHTML =
+            "<td class=\"device-code-cell\">" + escapeHtml(d.device_code) + "</td>" +
+            "<td class=\"device-name-cell\">" + escapeHtml(d.name || "") + "</td>" +
+            "<td class=\"device-dept-cell\">" + escapeHtml(d.dept || "") + "</td>" +
+            "<td class=\"device-status-cell\"><span class=\"" + statusClass + "\">" + escapeHtml(statusText) + "</span></td>" +
+            "<td>" + activePill + "</td>" +
+            "<td>" + qrLink + "</td>" +
+            "<td>" + actionParts.join(" ") + "</td>";
           tr.className = activeClass;
           tbody.appendChild(tr);
           if (!d.is_deleted) {
@@ -856,6 +1282,9 @@
         document.getElementById("device-page-info").textContent = "共 " + deviceTotal + " 条，当前第 " + (deviceTotal ? start : 0) + "–" + end + " 条";
         document.getElementById("device-prev").disabled = devicePage === 0;
         document.getElementById("device-next").disabled = end >= deviceTotal;
+        var deviceTableEl = document.getElementById("table-devices");
+        if (deviceTableEl && typeof initResizableColumns === "function") initResizableColumns(deviceTableEl);
+        if (typeof initDeviceHScrollSync === "function") initDeviceHScrollSync();
         tbody.querySelectorAll(".btn-disable").forEach(btn => {
           btn.onclick = () => setDeviceActive(parseInt(btn.dataset.id, 10), false);
         });
@@ -869,28 +1298,73 @@
           };
         });
         tbody.querySelectorAll(".btn-delete-device").forEach(btn => {
-          btn.onclick = () => deviceSoftDelete(parseInt(btn.dataset.id, 10));
+          btn.onclick = () => {
+            var id = parseInt(btn.dataset.id, 10);
+            if (!id) return;
+            var ok = confirm("确定要删除该设备吗？删除后可在「只显示已删除」中恢复。");
+            if (!ok) return;
+            deviceSoftDelete(id);
+          };
         });
         tbody.querySelectorAll(".btn-restore-device").forEach(btn => {
           btn.onclick = () => deviceRestore(parseInt(btn.dataset.id, 10));
         });
+        tbody.querySelectorAll(".device-qrcode-link").forEach(btn => {
+          btn.onclick = function () { openDeviceQrModal(parseInt(btn.dataset.id, 10)); };
+        });
         return list;
+      }
+      var deviceQrModalCurrentUrl = null;
+      function closeDeviceQrModal() {
+        var modal = document.getElementById("device-qr-modal");
+        var img = document.getElementById("device-qr-modal-img");
+        if (deviceQrModalCurrentUrl) { URL.revokeObjectURL(deviceQrModalCurrentUrl); deviceQrModalCurrentUrl = null; }
+        if (img) img.removeAttribute("src");
+        if (modal) modal.style.display = "none";
+      }
+      async function openDeviceQrModal(deviceId) {
+        if (!deviceId) return;
+        closeDeviceQrModal();
+        var modal = document.getElementById("device-qr-modal");
+        var img = document.getElementById("device-qr-modal-img");
+        if (!modal || !img) return;
+        modal.style.display = "flex";
+        try {
+          var res = await fetch("/api/devices/" + deviceId + "/qrcode", { headers: authHeaders() });
+          if (!res.ok) { img.alt = "加载失败"; return; }
+          var blob = await res.blob();
+          deviceQrModalCurrentUrl = URL.createObjectURL(blob);
+          img.src = deviceQrModalCurrentUrl;
+          img.alt = "设备二维码";
+        } catch (e) {
+          img.alt = "加载失败";
+        }
       }
       document.getElementById("device-prev").onclick = function () { if (devicePage > 0) { devicePage--; loadDevices(); } };
       document.getElementById("device-next").onclick = function () { if ((devicePage + 1) * devicePageSize < deviceTotal) { devicePage++; loadDevices(); } };
+      var devicePageSizeEl = document.getElementById("device-page-size");
+      if (devicePageSizeEl) devicePageSizeEl.onchange = function () { devicePageSize = parseInt(devicePageSizeEl.value, 10) || 20; devicePage = 0; loadDevices(); };
       var btnDeviceQuery = document.getElementById("btn-device-query");
       if (btnDeviceQuery) btnDeviceQuery.onclick = function () { devicePage = 0; loadDevices(); };
       var btnDeviceReset = document.getElementById("btn-device-reset");
       if (btnDeviceReset) btnDeviceReset.onclick = function () {
-        var qEl = document.getElementById("device-filter-q");
-        var deptEl = document.getElementById("device-filter-dept");
-        if (qEl) qEl.value = "";
-        if (deptEl) deptEl.value = "";
+        var newCodeEl = document.getElementById("new-code");
+        var newNameEl = document.getElementById("new-name");
+        var newDeptEl = document.getElementById("new-dept");
+        if (newCodeEl) newCodeEl.value = "";
+        if (newNameEl) newNameEl.value = "";
+        if (newDeptEl) newDeptEl.value = "";
         devicePage = 0;
         loadDevices();
       };
-      var deviceFilterQEl = document.getElementById("device-filter-q");
-      if (deviceFilterQEl) deviceFilterQEl.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); devicePage = 0; loadDevices(); } });
+      function bindDeviceFilterEnter() {
+        var run = function (e) { if (e.key === "Enter") { e.preventDefault(); devicePage = 0; loadDevices(); } };
+        ["new-code", "new-name", "new-dept"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener("keydown", run);
+        });
+      }
+      bindDeviceFilterEnter();
 
       async function doDeviceExport(format) {
         var btnCsv = document.getElementById("btn-device-export-csv");
@@ -900,10 +1374,11 @@
         try {
           var deletedOnly = document.getElementById("device-deleted-only") && document.getElementById("device-deleted-only").checked;
           var inactiveOnly = document.getElementById("device-inactive-only") && document.getElementById("device-inactive-only").checked;
-          var qEl = document.getElementById("device-filter-q");
-          var deptEl = document.getElementById("device-filter-dept");
-          var q = (qEl && qEl.value || "").trim();
-          var dept = (deptEl && deptEl.value || "").trim();
+          var newCodeEl = document.getElementById("new-code");
+          var newNameEl = document.getElementById("new-name");
+          var newDeptEl = document.getElementById("new-dept");
+          var q = (newCodeEl && newCodeEl.value || "").trim() || (newNameEl && newNameEl.value || "").trim();
+          var dept = (newDeptEl && newDeptEl.value || "").trim();
           var url = "/api/devices/export?format=" + encodeURIComponent(format) + "&include_inactive=1";
           if (deletedOnly) url += "&deleted_only=1";
           else if (inactiveOnly) url += "&inactive_only=1";
@@ -1101,7 +1576,7 @@
       if (userNextEl) userNextEl.onclick = function () { if ((userPage + 1) * userPageSize < userTotal) { userPage++; loadUsers(); } };
 
       var usagePage = 0;
-      var usagePageSize = 100;
+      var usagePageSize = 20;
       var usageTotal = 0;
       function buildUsageQueryParams(prefix) {
         var deviceInput = (document.getElementById("filter-device") && document.getElementById("filter-device").value || "").trim();
@@ -1162,31 +1637,85 @@
         var usageTypeLabel = function (code) { return usageTypeMap[code] != null ? usageTypeMap[code] : (code != null ? String(code) : ""); };
         const tbody = document.getElementById("usage-list");
         tbody.innerHTML = "";
-        function regDateStr(r) { return r.registration_date ? (typeof r.registration_date === "string" ? r.registration_date : new Date(r.registration_date).toISOString().slice(0, 10)) : ""; }
-        function timeOnlyStr(iso) { return iso ? new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : ""; }
-        function eqCondStr(v) { return v === "abnormal" ? "异常" : (v === "normal" ? "正常" : ""); }
-        function dailyStr(v) { return v === "disinfect" ? "消毒" : (v === "clean" ? "清洁" : ""); }
+        var EMPTY = "-";
+        function regDateStr(r) { return r.registration_date ? (typeof r.registration_date === "string" ? r.registration_date : new Date(r.registration_date).toISOString().slice(0, 10)) : EMPTY; }
+        function timeOnlyStr(iso) { return iso ? new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : EMPTY; }
+        function eqCondStr(v) { return v === "abnormal" ? "异常" : (v === "normal" ? "正常" : EMPTY); }
+        function dailyStr(v) { return v === "disinfect" ? "消毒" : (v === "clean" ? "清洁" : EMPTY); }
+        var USAGE_COLUMNS = [
+          { label: "登记日期", required: true },
+          { label: "实际登记时间", required: true },
+          { label: "设备", required: true },
+          { label: "床号", required: false },
+          { label: "ID号", required: false },
+          { label: "姓名", required: false },
+          { label: "开机", required: false },
+          { label: "关机", required: false },
+          { label: "维护人", required: false },
+          { label: "类型", required: true },
+          { label: "设备状况", required: false },
+          { label: "日常保养", required: false },
+          { label: "终末消毒", required: false },
+          { label: "备注", required: false }
+        ];
+        var REQUIRED_INDICES = [0, 1, 2, 9];
+        var MIDDLE_INDICES = [6, 7, 8];
+        var OPTIONAL_INDICES = [10, 11, 12, 13];
+        var OPTIONAL_FILL_LAST_INDICES = [3, 4, 5];
+        function cellVal(title, text) {
+          var t = text == null || text === undefined ? EMPTY : (String(text).trim() === "" ? EMPTY : String(text));
+          var tit = title != null && title !== undefined && String(title).trim() !== "" ? String(title) : t;
+          return { display: t, title: tit };
+        }
+        function cellValTrunc(text, maxLen) {
+          var full = text == null || text === undefined ? "" : String(text);
+          var display = full.trim() === "" ? EMPTY : (full.length > maxLen ? full.slice(0, maxLen) + "…" : full);
+          return { display: display, title: full || EMPTY };
+        }
+        usagePageSize = parseInt(document.getElementById("usage-page-size") && document.getElementById("usage-page-size").value, 10) || usagePageSize;
+        var rowsCells = [];
         data.forEach(r => {
-          const tr = document.createElement("tr");
-          const deviceCol = (r.device_name ? r.device_name + "（" + (r.device_code ?? "") + "）" : (r.device_code ?? ""));
-          const createdStr = r.created_at ? new Date(r.created_at).toLocaleString() : "";
-          tr.innerHTML =
-            "<td>" + escapeHtml(regDateStr(r)) + "</td>" +
-            "<td>" + escapeHtml(createdStr) + "</td>" +
-            "<td>" + escapeHtml(deviceCol) + "</td>" +
-            "<td>" + escapeHtml(r.bed_number ?? "") + "</td>" +
-            "<td>" + escapeHtml(r.id_number ?? "") + "</td>" +
-            "<td>" + escapeHtml(r.patient_name ?? "") + "</td>" +
-            "<td>" + escapeHtml(timeOnlyStr(r.start_time)) + "</td>" +
-            "<td>" + escapeHtml(timeOnlyStr(r.end_time)) + "</td>" +
-            "<td>" + escapeHtml(r.user_name ?? r.user_id ?? "") + "</td>" +
-            "<td>" + escapeHtml(usageTypeLabel(r.usage_type)) + "</td>" +
-            "<td>" + escapeHtml(eqCondStr(r.equipment_condition)) + "</td>" +
-            "<td>" + escapeHtml(dailyStr(r.daily_maintenance)) + "</td>" +
-            "<td>" + escapeHtml((r.terminal_disinfection ?? "").slice(0, 30)) + "</td>" +
-            "<td>" + escapeHtml((r.note ?? "").slice(0, 40)) + "</td>";
+          var deviceCol = (r.device_name ? r.device_name + "（" + (r.device_code ?? "") + "）" : (r.device_code ?? ""));
+          var createdStr = r.created_at ? new Date(r.created_at).toLocaleString() : EMPTY;
+          rowsCells.push([
+            cellVal(r.registration_date ? (typeof r.registration_date === "string" ? r.registration_date : new Date(r.registration_date).toISOString().slice(0, 10)) : null, regDateStr(r)),
+            cellVal(r.created_at ? new Date(r.created_at).toLocaleString() : null, createdStr),
+            cellVal(deviceCol, deviceCol || EMPTY),
+            cellVal(r.bed_number, r.bed_number),
+            cellVal(r.id_number, r.id_number),
+            cellVal(r.patient_name, r.patient_name),
+            cellVal(r.start_time ? new Date(r.start_time).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null, timeOnlyStr(r.start_time)),
+            cellVal(r.end_time ? new Date(r.end_time).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null, timeOnlyStr(r.end_time)),
+            cellVal(r.user_name || r.user_id, r.user_name ?? r.user_id ?? null),
+            cellVal(usageTypeLabel(r.usage_type), usageTypeLabel(r.usage_type)),
+            cellVal(eqCondStr(r.equipment_condition), eqCondStr(r.equipment_condition)),
+            cellVal(dailyStr(r.daily_maintenance), dailyStr(r.daily_maintenance)),
+            cellValTrunc(r.terminal_disinfection, 30),
+            cellValTrunc(r.note, 40)
+          ]);
+        });
+        var optionalAllDash = [];
+        var optionalHasValue = [];
+        OPTIONAL_INDICES.forEach(function (idx) {
+          var allDash = rowsCells.length > 0 && rowsCells.every(function (cells) { return cells[idx].display === EMPTY; });
+          if (allDash) optionalAllDash.push(idx); else optionalHasValue.push(idx);
+        });
+        var columnOrder = REQUIRED_INDICES.concat(MIDDLE_INDICES).concat(optionalHasValue).concat(optionalAllDash).concat(OPTIONAL_FILL_LAST_INDICES);
+        var theadRow = document.getElementById("usage-thead-row");
+        if (theadRow) theadRow.innerHTML = columnOrder.map(function (i) { return "<th>" + escapeHtml(USAGE_COLUMNS[i].label) + "</th>"; }).join("");
+        rowsCells.forEach(function (cells) {
+          var tr = document.createElement("tr");
+          tr.innerHTML = columnOrder.map(function (i) {
+            var c = cells[i];
+            var isEmpty = c.display === EMPTY;
+            var cls = isEmpty ? "cell-empty" : "";
+            return "<td" + (cls ? " class=\"" + cls + "\"" : "") + " title=\"" + escapeHtml(c.title) + "\">" + escapeHtml(c.display) + "</td>";
+          }).join("");
           tbody.appendChild(tr);
         });
+        var usageTable = document.getElementById("table-usage");
+        if (usageTable && typeof initResizableColumns === "function") initResizableColumns(usageTable);
+        if (typeof initUsageHScrollSync === "function") initUsageHScrollSync();
         var start = offset + 1;
         var end = offset + data.length;
         document.getElementById("usage-page-info").textContent = "共 " + usageTotal + " 条，当前第 " + (usageTotal ? start : 0) + "–" + end + " 条";
@@ -1197,8 +1726,93 @@
       }
       document.getElementById("usage-prev").onclick = function () { if (usagePage > 0) { usagePage--; loadUsage(); } };
       document.getElementById("usage-next").onclick = function () { if ((usagePage + 1) * usagePageSize < usageTotal) { usagePage++; loadUsage(); } };
-
+      var usagePageSizeEl = document.getElementById("usage-page-size");
+      if (usagePageSizeEl) {
+        usagePageSizeEl.onchange = function () {
+          usagePageSize = parseInt(usagePageSizeEl.value, 10) || 20;
+          usagePage = 0;
+          loadUsage();
+        };
+      }
       document.getElementById("btn-query").onclick = function () { usagePage = 0; loadUsage(); };
+
+      (function () {
+        var moreToggle = document.getElementById("usage-more-toggle");
+        var morePanel = document.getElementById("usage-more-filters");
+        if (moreToggle && morePanel) {
+          moreToggle.onclick = function () {
+            morePanel.classList.toggle("visible");
+            moreToggle.textContent = morePanel.classList.contains("visible") ? "▲ 收起更多筛选" : "▼ 展开更多筛选";
+          };
+          moreToggle.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); moreToggle.click(); } });
+        }
+      })();
+
+      var usageHScrollBound = false;
+      function initUsageHScrollSync() {
+        var wrap = document.getElementById("usage-table-wrap");
+        var hScroll = document.getElementById("usage-table-h-scroll");
+        var inner = document.getElementById("usage-table-h-scroll-inner");
+        var tbl = document.getElementById("table-usage");
+        if (!wrap || !hScroll || !inner || !tbl) return;
+        var w = Math.max(tbl.scrollWidth, wrap.clientWidth);
+        inner.style.width = w + "px";
+        hScroll.scrollLeft = wrap.scrollLeft;
+        if (!usageHScrollBound) {
+          usageHScrollBound = true;
+          wrap.addEventListener("scroll", function () {
+            if (hScroll.scrollLeft !== wrap.scrollLeft) hScroll.scrollLeft = wrap.scrollLeft;
+          });
+          hScroll.addEventListener("scroll", function () {
+            if (wrap.scrollLeft !== hScroll.scrollLeft) wrap.scrollLeft = hScroll.scrollLeft;
+          });
+        }
+      }
+      function initAuditHScrollSync() {
+        var wrap = document.getElementById("audit-table-wrap");
+        var hScroll = document.getElementById("audit-table-h-scroll");
+        var inner = document.getElementById("audit-table-h-scroll-inner");
+        var tbl = document.getElementById("table-audit");
+        if (!wrap || !hScroll || !inner || !tbl) return;
+        var w = Math.max(tbl.scrollWidth, wrap.clientWidth);
+        inner.style.width = w + "px";
+        hScroll.scrollLeft = wrap.scrollLeft;
+        if (!window._auditHScrollBound) {
+          window._auditHScrollBound = true;
+          wrap.addEventListener("scroll", function () {
+            if (hScroll.scrollLeft !== wrap.scrollLeft) hScroll.scrollLeft = wrap.scrollLeft;
+          });
+          hScroll.addEventListener("scroll", function () {
+            if (wrap.scrollLeft !== hScroll.scrollLeft) wrap.scrollLeft = hScroll.scrollLeft;
+          });
+        }
+      }
+      window.addEventListener("resize", function () {
+        if (typeof initUsageHScrollSync === "function") initUsageHScrollSync();
+        if (typeof initDeviceHScrollSync === "function") initDeviceHScrollSync();
+        if (typeof initAuditHScrollSync === "function") initAuditHScrollSync();
+      });
+
+      var deviceHScrollBound = false;
+      function initDeviceHScrollSync() {
+        var wrap = document.getElementById("device-table-wrap");
+        var hScroll = document.getElementById("device-table-h-scroll");
+        var inner = document.getElementById("device-table-h-scroll-inner");
+        var tbl = document.getElementById("table-devices");
+        if (!wrap || !hScroll || !inner || !tbl) return;
+        var w = Math.max(tbl.scrollWidth, wrap.clientWidth);
+        inner.style.width = w + "px";
+        hScroll.scrollLeft = wrap.scrollLeft;
+        if (!deviceHScrollBound) {
+          deviceHScrollBound = true;
+          wrap.addEventListener("scroll", function () {
+            if (hScroll.scrollLeft !== wrap.scrollLeft) hScroll.scrollLeft = wrap.scrollLeft;
+          });
+          hScroll.addEventListener("scroll", function () {
+            if (wrap.scrollLeft !== hScroll.scrollLeft) wrap.scrollLeft = hScroll.scrollLeft;
+          });
+        }
+      }
 
       function buildExportUrl(format) {
         var deviceInput = (document.getElementById("filter-device") && document.getElementById("filter-device").value || "").trim();
@@ -1320,6 +1934,7 @@
         }
         return { summary: summary, note: note || "—" };
       }
+      var auditLastRows = [];
       async function loadAudit() {
         const action = (document.getElementById("audit-filter-action") && document.getElementById("audit-filter-action").value) || "";
         const fromVal = (document.getElementById("audit-filter-from") && document.getElementById("audit-filter-from").value) || "";
@@ -1338,18 +1953,188 @@
           return;
         }
         const data = await res.json().catch(function () { return []; });
-        data.forEach(function (r) {
+        const keywordEl = document.getElementById("audit-keyword");
+        const kwRaw = keywordEl && keywordEl.value ? keywordEl.value.trim() : "";
+        const kw = kwRaw.toLowerCase();
+        function highlightAndEscape(text) {
+          var s = text == null ? "" : String(text);
+          if (!kw) return escapeHtml(s);
+          var lower = s.toLowerCase();
+          var parts = [];
+          var i = 0;
+          while (true) {
+            var idx = lower.indexOf(kw, i);
+            if (idx === -1) {
+              parts.push(escapeHtml(s.slice(i)));
+              break;
+            }
+            if (idx > i) {
+              parts.push(escapeHtml(s.slice(i, idx)));
+            }
+            var matched = s.slice(idx, idx + kw.length);
+            parts.push("<span class=\"audit-highlight\">" + escapeHtml(matched) + "</span>");
+            i = idx + kw.length;
+          }
+          return parts.join("");
+        }
+        auditLastRows = [];
+        const filtered = data.filter(function (r) {
+          if (!kw) return true;
+          var f = formatAuditRow(r);
+          var actorName = (r.actor_name || ("#" + (r.actor_id || "")));
+          var haystack = [
+            actorName || "",
+            r.action || "",
+            f.summary || "",
+            f.note || ""
+          ].join(" ").toLowerCase();
+          return haystack.indexOf(kw) !== -1;
+        });
+        filtered.forEach(function (r, idx) {
           const tr = document.createElement("tr");
           const timeStr = r.created_at ? new Date(r.created_at).toLocaleString() : "";
           const actor = (r.actor_name != null && r.actor_name !== "") ? r.actor_name : ("#" + (r.actor_id || ""));
           var formatted = formatAuditRow(r);
-          tr.innerHTML = "<td>" + escapeHtml(timeStr) + "</td><td>" + escapeHtml(actor || "—") + "</td><td>" + escapeHtml(formatted.summary) + "</td><td>" + escapeHtml(formatted.note) + "</td>";
+          var summaryText = formatted.summary || "";
+          var noteText = formatted.note && formatted.note.trim() !== "—" ? formatted.note : "无备注";
+          var actionTag = "";
+          if (r.action === "device.create") {
+            actionTag = "<span class=\"audit-tag-create\">新增</span>";
+          } else if (r.action && r.action.indexOf("export") !== -1) {
+            actionTag = "<span class=\"audit-tag-export\">导出</span>";
+          }
+          var noteClass = (formatted.note && formatted.note.trim() === "—") ? "audit-note-empty" : "";
+          tr.innerHTML =
+            "<td>" + escapeHtml(timeStr) + "</td>" +
+            "<td>" + escapeHtml(actor || "—") + "</td>" +
+            "<td>" + actionTag + highlightAndEscape(summaryText) + "</td>" +
+            "<td class=\"" + noteClass + "\">" + highlightAndEscape(noteText) + "</td>";
           tbody.appendChild(tr);
+          auditLastRows.push({
+            time: timeStr,
+            actor: actor || "",
+            summary: summaryText,
+            note: noteText
+          });
         });
-        if (msgEl) { msgEl.textContent = "共 " + data.length + " 条"; msgEl.className = "msg"; }
+        if (msgEl) { msgEl.textContent = "共 " + filtered.length + " 条"; msgEl.className = "msg"; }
       }
       if (document.getElementById("btn-audit-query")) {
-        document.getElementById("btn-audit-query").onclick = loadAudit;
+        var btnAuditQuery = document.getElementById("btn-audit-query");
+        btnAuditQuery.onclick = async function () {
+          var oldText = btnAuditQuery.textContent;
+          btnAuditQuery.disabled = true;
+          btnAuditQuery.textContent = "查询中...";
+          try {
+            await loadAudit();
+          } finally {
+            btnAuditQuery.disabled = false;
+            btnAuditQuery.textContent = oldText;
+          }
+        };
+        ["audit-filter-action", "audit-filter-from", "audit-filter-to"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) {
+            el.addEventListener("keydown", function (e) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                btnAuditQuery.click();
+              }
+            });
+          }
+        });
+        var auditActionSearchEl = document.getElementById("audit-action-search");
+        var auditActionSelect = document.getElementById("audit-filter-action");
+        if (auditActionSearchEl && auditActionSelect) {
+          var originalOptions = Array.prototype.slice.call(auditActionSelect.options);
+          auditActionSearchEl.addEventListener("input", function () {
+            var v = auditActionSearchEl.value.trim().toLowerCase();
+            auditActionSelect.innerHTML = "";
+            originalOptions.forEach(function (opt) {
+              if (!v) {
+                auditActionSelect.appendChild(opt);
+              } else {
+                var text = (opt.text || "").toLowerCase();
+                if (text.indexOf(v) !== -1 || opt.value === "") {
+                  auditActionSelect.appendChild(opt);
+                }
+              }
+            });
+          });
+        }
+        function setAuditQuickRange(kind) {
+          var fromEl = document.getElementById("audit-filter-from");
+          var toEl = document.getElementById("audit-filter-to");
+          if (!fromEl || !toEl) return;
+          var now = new Date();
+          var start = new Date(now);
+          var end = new Date(now);
+          if (kind === "today") {
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 0, 0);
+          } else if (kind === "week") {
+            var day = now.getDay() || 7;
+            start.setDate(now.getDate() - day + 1);
+            start.setHours(0, 0, 0, 0);
+            end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            end.setHours(23, 59, 0, 0);
+          } else if (kind === "month") {
+            start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 0, 0);
+          }
+          function toLocalInput(dt) {
+            const pad = n => (n < 10 ? "0" + n : "" + n);
+            return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()) + "T" + pad(dt.getHours()) + ":" + pad(dt.getMinutes());
+          }
+          fromEl.value = toLocalInput(start);
+          toEl.value = toLocalInput(end);
+        }
+        var quickToday = document.getElementById("audit-quick-today");
+        var quickWeek = document.getElementById("audit-quick-week");
+        var quickMonth = document.getElementById("audit-quick-month");
+        if (quickToday) quickToday.addEventListener("click", function () { setAuditQuickRange("today"); btnAuditQuery.click(); });
+        if (quickWeek) quickWeek.addEventListener("click", function () { setAuditQuickRange("week"); btnAuditQuery.click(); });
+        if (quickMonth) quickMonth.addEventListener("click", function () { setAuditQuickRange("month"); btnAuditQuery.click(); });
+
+        async function exportAudit(format) {
+          var btnCsv = document.getElementById("btn-audit-export-csv");
+          var btnXlsx = document.getElementById("btn-audit-export-xlsx");
+          var targetBtn = format === "xlsx" ? btnXlsx : btnCsv;
+          if (targetBtn) { targetBtn.disabled = true; targetBtn.textContent = "导出中..."; }
+          try {
+            if (!auditLastRows || !auditLastRows.length) {
+              await loadAudit();
+            }
+            var rows = auditLastRows || [];
+            if (!rows.length) return;
+            var header = ["时间", "操作人", "操作说明", "备注"];
+            var lines = [header];
+            rows.forEach(function (r) {
+              lines.push([r.time || "", r.actor || "", r.summary || "", r.note || ""]);
+            });
+            var csv = lines.map(function (cols) {
+              return cols.map(function (c) {
+                var s = String(c).replace(/\"/g, "\"\"");
+                if (/[\",\\n]/.test(s)) s = "\"" + s + "\"";
+                return s;
+              }).join(",");
+            }).join("\n");
+            var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = format === "xlsx" ? "audit_logs.xlsx" : "audit_logs.csv";
+            a.click();
+            URL.revokeObjectURL(a.href);
+          } finally {
+            if (btnCsv) { btnCsv.disabled = false; btnCsv.textContent = "导出 CSV"; }
+            if (btnXlsx) { btnXlsx.disabled = false; btnXlsx.textContent = "导出 Excel"; }
+          }
+        }
+        var btnAuditExportCsv = document.getElementById("btn-audit-export-csv");
+        var btnAuditExportXlsx = document.getElementById("btn-audit-export-xlsx");
+        if (btnAuditExportCsv) btnAuditExportCsv.addEventListener("click", function () { exportAudit("csv"); });
+        if (btnAuditExportXlsx) btnAuditExportXlsx.addEventListener("click", function () { exportAudit("xlsx"); });
       }
 
       async function loadDict() {
@@ -1378,6 +2163,12 @@
           if (d.is_deleted) tr.classList.add("dict-row-deleted");
           const statusText = d.is_deleted ? "—" : (d.is_active ? "启用" : "停用");
           const deletedText = d.is_deleted ? "是" : "否";
+          const statusHtml = d.is_deleted
+            ? escapeHtml(statusText)
+            : "<span class=\"dict-pill-status " + (d.is_active ? "dict-pill-status-on" : "dict-pill-status-off") + "\">" + escapeHtml(statusText) + "</span>";
+          const deletedHtml = d.is_deleted
+            ? "<span class=\"dict-pill-deleted\">是</span>"
+            : "<span class=\"dict-pill-deleted\" style=\"background:#ecfeff;color:#0f766e;\">否</span>";
           const actions = [];
           if (d.is_deleted) {
             actions.push("<button type=\"button\" class=\"dict-restore\" data-id=\"" + d.id + "\">恢复</button>");
@@ -1388,7 +2179,7 @@
               ? "<button type=\"button\" class=\"dict-disable\" data-id=\"" + d.id + "\">停用</button>"
               : "<button type=\"button\" class=\"dict-enable\" data-id=\"" + d.id + "\">启用</button>");
           }
-          tr.innerHTML = "<td>" + (d.code != null ? escapeHtml(String(d.code)) : "") + "</td><td class=\"dict-label-cell\">" + escapeHtml(d.label || "") + "</td><td>" + escapeHtml(statusText) + "</td><td>" + escapeHtml(deletedText) + "</td><td>" + actions.join(" ") + "</td>";
+          tr.innerHTML = "<td>" + (d.code != null ? escapeHtml(String(d.code)) : "") + "</td><td class=\"dict-label-cell\">" + escapeHtml(d.label || "") + "</td><td>" + statusHtml + "</td><td>" + deletedHtml + "</td><td>" + actions.join(" ") + "</td>";
           tr.dataset.id = d.id;
           tbody.appendChild(tr);
         });
@@ -1426,8 +2217,8 @@
         };
         cell.querySelector(".dict-cancel").onclick = function () { cell.innerHTML = oldHtml; };
       }
-      async function dictSoftDelete(id) {
-        if (!confirm("确定删除？仅打标识，不物理删除。")) return;
+          async function dictSoftDelete(id) {
+        if (!confirm("确定要删除该字典项吗？仅打标识不物理删除，可在本列表中查看。")) return;
         const res = await fetch("/api/dict/" + id, { method: "DELETE", headers: authHeaders() });
         if (res.ok) loadDict(); else alert((await res.json().catch(function(){return{};})).detail || "删除失败");
       }
@@ -1534,6 +2325,10 @@
         var deviceInactiveOnlyEl = document.getElementById("device-inactive-only");
         if (deviceDeletedOnlyEl) deviceDeletedOnlyEl.addEventListener("change", function () { if (deviceDeletedOnlyEl.checked && deviceInactiveOnlyEl) deviceInactiveOnlyEl.checked = false; devicePage = 0; loadDevices(); });
         if (deviceInactiveOnlyEl) deviceInactiveOnlyEl.addEventListener("change", function () { if (deviceInactiveOnlyEl.checked && deviceDeletedOnlyEl) deviceDeletedOnlyEl.checked = false; devicePage = 0; loadDevices(); });
+        var qrModalClose = document.getElementById("device-qr-modal-close");
+        var qrModalBackdrop = document.querySelector("#device-qr-modal .device-qr-modal-backdrop");
+        if (qrModalClose) qrModalClose.addEventListener("click", closeDeviceQrModal);
+        if (qrModalBackdrop) qrModalBackdrop.addEventListener("click", closeDeviceQrModal);
       })();
     </script>
   </body>
