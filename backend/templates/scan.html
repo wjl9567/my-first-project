@@ -196,6 +196,10 @@
         color: var(--text);
         font-weight: 500;
       }
+      .field.required label::before {
+        content: "* ";
+        color: #dc2626;
+      }
       .field.optional label::after {
         content: "（选填）";
         font-weight: 400;
@@ -224,6 +228,66 @@
         outline: none;
         border-color: var(--primary);
         box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+      }
+      /* 设备状况/日常保养：单选题样式，选中项前显示打钩 √ */
+      .radio-group {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        min-height: var(--touch-min);
+        align-items: center;
+      }
+      .radio-label {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 400;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        padding: 12px 16px;
+        border-radius: var(--radius);
+        border: 2px solid #d9d9d9;
+        background: #fff;
+        transition: border-color 0.2s, background 0.2s, color 0.2s;
+      }
+      .radio-label input[type="radio"] {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .radio-label .radio-visual {
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        border: 2px solid #d9d9d9;
+        border-radius: 4px;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: transparent;
+        transition: border-color 0.2s, background 0.2s, color 0.2s;
+      }
+      .radio-label:has(input:checked) {
+        border-color: #1677ff;
+        background: #e6f7ff;
+        color: #1677ff;
+        font-weight: 600;
+      }
+      .radio-label:has(input:checked) .radio-visual {
+        border-color: #1677ff;
+        background: #1677ff;
+        color: #fff;
+      }
+      .radio-label:has(input:checked) .radio-visual::before {
+        content: "✓";
       }
       .btn-submit {
         width: 100%;
@@ -410,8 +474,8 @@
   </head>
   <body>
     <div class="page-header">
-      <h1>设备使用登记</h1>
-      <p class="sub">扫一扫 或 输入设备编号 → 填写 → 提交</p>
+      <h1>设备使用维护登记</h1>
+      <p class="sub">扫一扫 或 输入设备编号 → 填写登记信息 → 提交</p>
     </div>
     <div id="dev-login-hint" class="dev-login-hint" style="display:none;">
       开发环境：请先在 <a href="/admin">后台</a> 使用管理员账号登录（需在 backend 目录 .env 中配置 ADMIN_USERNAME、ADMIN_PASSWORD），同一浏览器再刷新本页即可登记。
@@ -442,19 +506,63 @@
       <button type="button" class="change-device" id="change-device" style="display:none;">更换设备</button>
 
       <div class="form-section" id="form-section" style="display:none;">
-        <div class="field">
-          <label>使用类型</label>
-          <select id="usage_type"><option value="">加载中...</option></select>
+        <div class="field required">
+          <label>登记日期</label>
+          <input id="registration_date" type="date" />
         </div>
-
         <div class="field optional">
-          <label>备注</label>
-          <textarea id="note" rows="2" maxlength="500" placeholder="如：12床术后监护（最多500字）"></textarea>
+          <label>床号</label>
+          <input id="bed_number" type="text" placeholder="选填" maxlength="32" />
         </div>
-
-        <div class="field optional field-hidden" id="field-patient-id">
-          <label>患者ID/病历号</label>
-          <input id="patient_id" type="text" placeholder="选填" />
+        <div class="field optional">
+          <label>ID 号</label>
+          <input id="id_number" type="text" placeholder="选填" maxlength="64" />
+        </div>
+        <div class="field optional">
+          <label>姓名</label>
+          <input id="patient_name" type="text" placeholder="选填" maxlength="64" />
+        </div>
+        <div class="field required">
+          <label>开机时间</label>
+          <input id="power_on_time" type="time" />
+        </div>
+        <div class="field required">
+          <label>关机时间</label>
+          <input id="power_off_time" type="time" />
+        </div>
+        <div class="field">
+          <label>设备状况</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="equipment_condition" value="normal" checked />
+              <span class="radio-visual" aria-hidden="true"></span>
+              <span class="radio-text">正常</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="equipment_condition" value="abnormal" />
+              <span class="radio-visual" aria-hidden="true"></span>
+              <span class="radio-text">异常</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>日常保养</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="daily_maintenance" value="clean" checked />
+              <span class="radio-visual" aria-hidden="true"></span>
+              <span class="radio-text">清洁</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="daily_maintenance" value="disinfect" />
+              <span class="radio-visual" aria-hidden="true"></span>
+              <span class="radio-text">消毒</span>
+            </label>
+          </div>
+        </div>
+        <div class="field optional">
+          <label>终末消毒</label>
+          <textarea id="terminal_disinfection" rows="2" maxlength="500" placeholder="选填，可填写终末消毒备注"></textarea>
         </div>
 
         <button type="button" id="submit-btn" class="btn-submit">提交登记</button>
@@ -463,7 +571,7 @@
 
       <div class="success-panel" id="success-panel" style="display:none;">
         <h3>登记成功</h3>
-        <p class="success-hint">本台设备已登记，可继续登记下一台。</p>
+        <p class="success-hint">本台设备使用维护登记已保存，可继续登记下一台。</p>
         <div class="actions">
           <button type="button" class="btn-next" id="btn-next-device">登记下一台</button>
         </div>
@@ -540,7 +648,13 @@
       const scanCanvas = document.getElementById("scan-canvas");
       const scanCancel = document.getElementById("scan-cancel");
       const scanErrorEl = document.getElementById("scan-error");
-      const usageTypeSelect = document.getElementById("usage_type");
+      const registrationDateEl = document.getElementById("registration_date");
+      const bedNumberEl = document.getElementById("bed_number");
+      const idNumberEl = document.getElementById("id_number");
+      const patientNameEl = document.getElementById("patient_name");
+      const powerOnTimeEl = document.getElementById("power_on_time");
+      const powerOffTimeEl = document.getElementById("power_off_time");
+      const terminalDisinfectionEl = document.getElementById("terminal_disinfection");
 
       var DEVICE_CODE_ERROR_MSG = "该设备编码不存在或已被删除，请核对后重新输入/扫描";
 
@@ -549,10 +663,26 @@
         deviceCodeErrorEl.style.display = msg ? "block" : "none";
       }
 
+      function setDefaultDateAndTime() {
+        var d = new Date();
+        var dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        if (registrationDateEl && !registrationDateEl.value) registrationDateEl.value = dateStr;
+        if (powerOnTimeEl && !powerOnTimeEl.value) powerOnTimeEl.value = "08:00";
+        if (powerOffTimeEl && !powerOffTimeEl.value) powerOffTimeEl.value = "18:00";
+      }
       function clearFormDataExceptDeviceCode() {
-        if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
-        document.getElementById("note").value = "";
-        document.getElementById("patient_id").value = "";
+        if (registrationDateEl) registrationDateEl.value = "";
+        if (bedNumberEl) bedNumberEl.value = "";
+        if (idNumberEl) idNumberEl.value = "";
+        if (patientNameEl) patientNameEl.value = "";
+        if (powerOnTimeEl) powerOnTimeEl.value = "";
+        if (powerOffTimeEl) powerOffTimeEl.value = "";
+        if (terminalDisinfectionEl) terminalDisinfectionEl.value = "";
+        var radios = document.querySelectorAll("input[name='equipment_condition']");
+        if (radios.length) radios[0].checked = true;
+        radios = document.querySelectorAll("input[name='daily_maintenance']");
+        if (radios.length) radios[0].checked = true;
+        setDefaultDateAndTime();
       }
 
       function setValidationInvalid() {
@@ -590,6 +720,7 @@
         deviceInfoEl.className = "device-info";
         changeDeviceBtn.style.display = "block";
         formSection.style.display = "block";
+        setDefaultDateAndTime();
         setValidationValid();
       }
 
@@ -766,21 +897,31 @@
       async function submitUsage() {
         if (!device) return;
         if (submitBtn.disabled) return;
-        var usageTypeVal = parseInt(usageTypeSelect.value, 10);
-        if (!usageTypeSelect.value || isNaN(usageTypeVal)) {
-          statusEl.textContent = "请先选择使用类型";
-          statusEl.className = "status error";
-          return;
-        }
+        var bedNumber = (bedNumberEl && bedNumberEl.value) ? bedNumberEl.value.trim() : null;
+        var idNumber = (idNumberEl && idNumberEl.value) ? idNumberEl.value.trim() : null;
+        var regDate = registrationDateEl && registrationDateEl.value ? registrationDateEl.value : "";
+        var onTime = powerOnTimeEl && powerOnTimeEl.value ? powerOnTimeEl.value : "08:00";
+        var offTime = powerOffTimeEl && powerOffTimeEl.value ? powerOffTimeEl.value : "18:00";
+        var startTime = regDate && onTime ? regDate + "T" + onTime + ":00" : null;
+        var endTime = regDate && offTime ? regDate + "T" + offTime + ":00" : null;
+        var eqCond = (document.querySelector("input[name='equipment_condition']:checked") || {}).value || "normal";
+        var daily = (document.querySelector("input[name='daily_maintenance']:checked") || {}).value || "clean";
         submitBtn.disabled = true;
         submitBtn.textContent = "提交中...";
         statusEl.textContent = "";
         statusEl.className = "status";
         var payload = {
           device_code: device.device_code,
-          usage_type: usageTypeVal,
-          patient_id: document.getElementById("patient_id").value || null,
-          note: document.getElementById("note").value || null,
+          usage_type: 3,
+          registration_date: regDate || null,
+          bed_number: bedNumber || null,
+          id_number: idNumber || null,
+          patient_name: (patientNameEl && patientNameEl.value) ? patientNameEl.value.trim() : null,
+          start_time: startTime,
+          end_time: endTime,
+          equipment_condition: eqCond,
+          daily_maintenance: daily,
+          terminal_disinfection: (terminalDisinfectionEl && terminalDisinfectionEl.value) ? terminalDisinfectionEl.value.trim() : null,
           photo_urls: [],
           source: "h5",
         };
@@ -798,9 +939,7 @@
               msg += " 开发环境可 <a href=\"/admin\">前往后台登录</a> 后刷新本页。";
             throw new Error(msg);
           }
-          if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
-          document.getElementById("note").value = "";
-          document.getElementById("patient_id").value = "";
+          clearFormDataExceptDeviceCode();
           statusEl.textContent = "";
           setDeviceCleared();
           successPanel.style.display = "block";
@@ -824,25 +963,7 @@
         deviceCodeInput.focus();
       });
 
-      async function loadUsageTypeOptions() {
-        try {
-          const res = await fetch("/api/dict?dict_type=usage_type", { headers: authHeaders() });
-          if (!res.ok) return;
-          const list = await res.json();
-          usageTypeSelect.innerHTML = "";
-          list.forEach(function (item) {
-            const opt = document.createElement("option");
-            opt.value = String(item.code);
-            opt.textContent = item.label;
-            usageTypeSelect.appendChild(opt);
-          });
-          if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
-        } catch (e) {
-          usageTypeSelect.innerHTML = "<option value=\"1\">常规使用</option><option value=\"2\">借用</option><option value=\"3\">维修/故障</option><option value=\"4\">校准/质控</option><option value=\"5\">其他</option>";
-        }
-      }
-      loadUsageTypeOptions();
-
+      setDefaultDateAndTime();
       if (deviceCodeFromUrl) loadDeviceByCode(deviceCodeFromUrl);
         else if (deviceIdFromUrl) loadDeviceById(deviceIdFromUrl);
     </script>

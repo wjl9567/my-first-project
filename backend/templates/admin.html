@@ -266,6 +266,37 @@
       .resizable-cols .col-resize-handle:active { background: rgba(13, 148, 136, 0.25); }
       body.col-resizing { cursor: col-resize; user-select: none; }
       .loading-cell { text-align: center; color: var(--text-muted); padding: 24px !important; }
+
+      /* 使用记录查询：表格横向滚动、筛选区小屏适配 */
+      .usage-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -4px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+      }
+      #table-usage { min-width: 1100px; width: max-content; margin-bottom: 0; }
+      #table-usage th, #table-usage td { min-width: 60px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #table-usage th:nth-child(1), #table-usage td:nth-child(1) { min-width: 90px; }
+      #table-usage th:nth-child(3), #table-usage td:nth-child(3) { min-width: 100px; }
+      #table-usage th:nth-child(14), #table-usage td:nth-child(14) { max-width: 200px; white-space: normal; word-break: break-all; }
+      .usage-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .usage-filters label { white-space: nowrap; color: var(--text); font-weight: 500; font-size: 13px; }
+      .usage-filters input, .usage-filters select { min-width: 0; }
+      .usage-filters .filter-group { display: inline-flex; align-items: center; gap: 6px; }
+      .usage-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+      @media (max-width: 900px) {
+        .admin-main { padding: 12px; }
+        .usage-filters .filter-group { flex: 1 1 140px; min-width: 120px; }
+        .usage-filters input[type="date"], .usage-filters input[type="text"] { width: 100%; max-width: 160px; }
+        .usage-actions { margin-top: 12px; }
+        .usage-actions button { flex: 1; min-width: 80px; }
+      }
+      @media (max-width: 600px) {
+        .usage-filters .filter-group { flex: 1 1 100%; }
+        .usage-filters input[type="date"], .usage-filters input[type="text"] { max-width: none; }
+      }
     </style>
   </head>
   <body>
@@ -400,26 +431,32 @@
         <div id="panel-usage" class="admin-panel">
           <h2>使用记录查询</h2>
           <div class="card">
-            <div class="flex mb">
-              <label>设备</label>
-              <input id="filter-device" list="device-options" placeholder="设备名称或编号" />
+            <div class="usage-filters mb">
+              <span class="filter-group"><label>设备</label><input id="filter-device" list="device-options" placeholder="名称或编号" /></span>
               <datalist id="device-options"></datalist>
-              <label>科室</label><input id="filter-dept" list="dept-options" placeholder="科室" />
+              <span class="filter-group"><label>科室</label><input id="filter-dept" list="dept-options" placeholder="科室" /></span>
               <datalist id="dept-options"></datalist>
-              <label>开始日期</label><input type="date" id="filter-from" />
-              <label>结束日期</label><input type="date" id="filter-to" />
+              <span class="filter-group"><label>登记日期起</label><input type="date" id="filter-reg-from" /></span>
+              <span class="filter-group"><label>登记日期止</label><input type="date" id="filter-reg-to" /></span>
+              <span class="filter-group"><label>床号</label><input id="filter-bed" placeholder="床号" /></span>
+              <span class="filter-group"><label>开始日期</label><input type="date" id="filter-from" /></span>
+              <span class="filter-group"><label>结束日期</label><input type="date" id="filter-to" /></span>
+            </div>
+            <div class="usage-actions">
               <button id="btn-query">查询</button>
               <button id="btn-export" class="secondary">导出 CSV</button>
               <button id="btn-export-xlsx" class="secondary">导出 Excel</button>
               <button id="btn-export-pdf" class="secondary">导出 PDF</button>
             </div>
             <div class="msg" id="usage-msg"></div>
-            <table id="table-usage" class="resizable-cols">
-              <thead>
-                <tr><th>时间</th><th>设备</th><th>使用人</th><th>类型</th><th>备注</th></tr>
-              </thead>
-              <tbody id="usage-list"></tbody>
-            </table>
+            <div class="usage-table-wrap" role="region" aria-label="使用记录表格，可左右滑动查看全部列">
+              <table id="table-usage" class="resizable-cols">
+                <thead>
+                  <tr><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>维护人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
+                </thead>
+                <tbody id="usage-list"></tbody>
+              </table>
+            </div>
             <div class="pagination-wrap" id="usage-pagination">
               <span id="usage-page-info">共 0 条</span>
               <button type="button" id="usage-prev" class="secondary">上一页</button>
@@ -1073,11 +1110,17 @@
         if (codeMatch && codeMatch[1]) deviceCode = codeMatch[1].replace(/\s*\[已停用\]\s*$/, "").trim();
         else deviceCode = deviceInput;
         var dept = (document.getElementById("filter-dept") && document.getElementById("filter-dept").value || "").trim();
+        var regFrom = (document.getElementById("filter-reg-from") && document.getElementById("filter-reg-from").value) || "";
+        var regTo = (document.getElementById("filter-reg-to") && document.getElementById("filter-reg-to").value) || "";
+        var bed = (document.getElementById("filter-bed") && document.getElementById("filter-bed").value || "").trim();
         var from = (document.getElementById("filter-from") && document.getElementById("filter-from").value) || "";
         var to = (document.getElementById("filter-to") && document.getElementById("filter-to").value) || "";
         var s = prefix || "";
         if (deviceCode) s += "device_code=" + encodeURIComponent(deviceCode) + "&";
         if (dept) s += "dept=" + encodeURIComponent(dept) + "&";
+        if (regFrom) s += "registration_date_from=" + encodeURIComponent(regFrom) + "&";
+        if (regTo) s += "registration_date_to=" + encodeURIComponent(regTo) + "&";
+        if (bed) s += "bed_number=" + encodeURIComponent(bed) + "&";
         if (from) s += "from_time=" + encodeURIComponent(from + "T00:00:00") + "&";
         if (to) s += "to_time=" + encodeURIComponent(to + "T23:59:59") + "&";
         return s;
@@ -1093,7 +1136,7 @@
       }
       async function loadUsage() {
         var usageListEl = document.getElementById("usage-list");
-        if (usageListEl) usageListEl.innerHTML = "<tr><td colspan=\"5\" class=\"loading-cell\">加载中...</td></tr>";
+        if (usageListEl) usageListEl.innerHTML = "<tr><td colspan=\"14\" class=\"loading-cell\">加载中...</td></tr>";
         var offset = usagePage * usagePageSize;
         var queryParams = buildUsageQueryParams("limit=" + usagePageSize + "&offset=" + offset + "&");
         var countParams = buildUsageQueryParams("");
@@ -1119,14 +1162,29 @@
         var usageTypeLabel = function (code) { return usageTypeMap[code] != null ? usageTypeMap[code] : (code != null ? String(code) : ""); };
         const tbody = document.getElementById("usage-list");
         tbody.innerHTML = "";
+        function regDateStr(r) { return r.registration_date ? (typeof r.registration_date === "string" ? r.registration_date : new Date(r.registration_date).toISOString().slice(0, 10)) : ""; }
+        function timeOnlyStr(iso) { return iso ? new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : ""; }
+        function eqCondStr(v) { return v === "abnormal" ? "异常" : (v === "normal" ? "正常" : ""); }
+        function dailyStr(v) { return v === "disinfect" ? "消毒" : (v === "clean" ? "清洁" : ""); }
         data.forEach(r => {
           const tr = document.createElement("tr");
-          const timeStr = r.start_time ? new Date(r.start_time).toLocaleString() : "";
           const deviceCol = (r.device_name ? r.device_name + "（" + (r.device_code ?? "") + "）" : (r.device_code ?? ""));
-          const userCol = (r.user_name ?? r.user_id ?? "");
-          const typeCol = usageTypeLabel(r.usage_type);
-          const noteCol = (r.note ?? "").slice(0, 40);
-          tr.innerHTML = "<td>" + escapeHtml(timeStr) + "</td><td>" + escapeHtml(deviceCol) + "</td><td>" + escapeHtml(userCol) + "</td><td>" + escapeHtml(typeCol) + "</td><td>" + escapeHtml(noteCol) + "</td>";
+          const createdStr = r.created_at ? new Date(r.created_at).toLocaleString() : "";
+          tr.innerHTML =
+            "<td>" + escapeHtml(regDateStr(r)) + "</td>" +
+            "<td>" + escapeHtml(createdStr) + "</td>" +
+            "<td>" + escapeHtml(deviceCol) + "</td>" +
+            "<td>" + escapeHtml(r.bed_number ?? "") + "</td>" +
+            "<td>" + escapeHtml(r.id_number ?? "") + "</td>" +
+            "<td>" + escapeHtml(r.patient_name ?? "") + "</td>" +
+            "<td>" + escapeHtml(timeOnlyStr(r.start_time)) + "</td>" +
+            "<td>" + escapeHtml(timeOnlyStr(r.end_time)) + "</td>" +
+            "<td>" + escapeHtml(r.user_name ?? r.user_id ?? "") + "</td>" +
+            "<td>" + escapeHtml(usageTypeLabel(r.usage_type)) + "</td>" +
+            "<td>" + escapeHtml(eqCondStr(r.equipment_condition)) + "</td>" +
+            "<td>" + escapeHtml(dailyStr(r.daily_maintenance)) + "</td>" +
+            "<td>" + escapeHtml((r.terminal_disinfection ?? "").slice(0, 30)) + "</td>" +
+            "<td>" + escapeHtml((r.note ?? "").slice(0, 40)) + "</td>";
           tbody.appendChild(tr);
         });
         var start = offset + 1;
@@ -1143,20 +1201,23 @@
       document.getElementById("btn-query").onclick = function () { usagePage = 0; loadUsage(); };
 
       function buildExportUrl(format) {
-        var deviceInput = document.getElementById("filter-device").value.trim();
+        var deviceInput = (document.getElementById("filter-device") && document.getElementById("filter-device").value || "").trim();
         var deviceCode = "";
         var codeMatch = deviceInput.match(/\(([^)]+)\)/);
-        if (codeMatch && codeMatch[1]) {
-          deviceCode = codeMatch[1].replace(/\s*\[已停用\]\s*$/, "").trim();
-        } else {
-          deviceCode = deviceInput;
-        }
+        if (codeMatch && codeMatch[1]) deviceCode = codeMatch[1].replace(/\s*\[已停用\]\s*$/, "").trim();
+        else deviceCode = deviceInput;
         var dept = (document.getElementById("filter-dept") && document.getElementById("filter-dept").value || "").trim();
-        var from = document.getElementById("filter-from").value;
-        var to = document.getElementById("filter-to").value;
+        var regFrom = (document.getElementById("filter-reg-from") && document.getElementById("filter-reg-from").value) || "";
+        var regTo = (document.getElementById("filter-reg-to") && document.getElementById("filter-reg-to").value) || "";
+        var bed = (document.getElementById("filter-bed") && document.getElementById("filter-bed").value || "").trim();
+        var from = (document.getElementById("filter-from") && document.getElementById("filter-from").value) || "";
+        var to = (document.getElementById("filter-to") && document.getElementById("filter-to").value) || "";
         var url = "/api/usage/export?format=" + encodeURIComponent(format);
         if (deviceCode) url += "&device_code=" + encodeURIComponent(deviceCode);
         if (dept) url += "&dept=" + encodeURIComponent(dept);
+        if (regFrom) url += "&registration_date_from=" + encodeURIComponent(regFrom);
+        if (regTo) url += "&registration_date_to=" + encodeURIComponent(regTo);
+        if (bed) url += "&bed_number=" + encodeURIComponent(bed);
         if (from) url += "&from_time=" + encodeURIComponent(from + "T00:00:00");
         if (to) url += "&to_time=" + encodeURIComponent(to + "T23:59:59");
         return url;

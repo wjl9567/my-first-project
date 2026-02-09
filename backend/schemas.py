@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
@@ -91,6 +91,19 @@ class UsageRecordBase(BaseModel):
     start_time: Optional[datetime] = None
     photo_urls: Optional[List[str]] = None
     source: Optional[str] = None
+    # 维护登记扩展字段
+    registration_date: Optional[date] = Field(None, description="登记日期（护士选择的那天）")
+    bed_number: Optional[str] = Field(None, max_length=32, description="床号")
+    id_number: Optional[str] = Field(None, max_length=64, description="ID号")
+    patient_name: Optional[str] = Field(None, max_length=64, description="姓名，选填")
+    end_time: Optional[datetime] = Field(None, description="关机时间")
+    equipment_condition: Optional[str] = Field(
+        None, max_length=16, description="设备状况：normal 正常 / abnormal 异常"
+    )
+    daily_maintenance: Optional[str] = Field(
+        None, max_length=16, description="日常保养：clean 清洁 / disinfect 消毒"
+    )
+    terminal_disinfection: Optional[str] = Field(None, max_length=500, description="终末消毒备注，选填")
 
 
 class UsageRecordCreate(UsageRecordBase):

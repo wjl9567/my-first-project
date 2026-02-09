@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO, StringIO
 from typing import List, Optional
 
@@ -16,9 +16,10 @@ from .database import get_db
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
 
-# 导出表头：与「使用记录查询」页展示列一致（时间、设备、使用人、类型、备注）
+# 导出表头：含维护登记扩展列（登记日期、实际登记时间、设备、床号、开机/关机、维护人、设备状况等）
 EXPORT_HEADERS = [
-    "使用时间", "设备", "使用人", "使用类型", "备注",
+    "登记日期", "实际登记时间", "设备", "床号", "ID号", "姓名", "开机时间", "关机时间",
+    "维护人", "使用类型", "设备状况", "日常保养", "终末消毒", "备注",
 ]
 
 # 导出日期时间格式：与系统查询列表展示一致（YYYY-MM-DD HH:mm:ss）
@@ -46,7 +47,7 @@ def _get_usage_type_label_map(db: Session) -> dict:
 
 
 def _record_to_row(r: models.UsageRecord, usage_type_label_map: Optional[dict] = None) -> List[str]:
-    """单行导出数据，仅包含查询页展示的 5 列。"""
+    """单行导出数据，含维护登记扩展列。"""
     device = r.device
     user = r.user
     device_display = ""
@@ -55,11 +56,33 @@ def _record_to_row(r: models.UsageRecord, usage_type_label_map: Optional[dict] =
     usage_type_str = str(r.usage_type) if r.usage_type is not None else ""
     if usage_type_label_map:
         usage_type_str = usage_type_label_map.get(usage_type_str, usage_type_str)
+    reg_date = getattr(r, "registration_date", None)
+    reg_date_str = reg_date.strftime("%Y-%m-%d") if reg_date else ""
+    end_time = getattr(r, "end_time", None)
+    eq_cond = getattr(r, "equipment_condition", None) or ""
+    if eq_cond == "normal":
+        eq_cond = "正常"
+    elif eq_cond == "abnormal":
+        eq_cond = "异常"
+    daily = getattr(r, "daily_maintenance", None) or ""
+    if daily == "clean":
+        daily = "清洁"
+    elif daily == "disinfect":
+        daily = "消毒"
     return [
-        _format_display_datetime(r.start_time),
+        reg_date_str,
+        _format_display_datetime(getattr(r, "created_at", None) or r.start_time),
         device_display,
+        (getattr(r, "bed_number", None) or ""),
+        (getattr(r, "id_number", None) or ""),
+        (getattr(r, "patient_name", None) or ""),
+        _format_display_datetime(r.start_time),
+        _format_display_datetime(end_time),
         user.real_name if user else "",
         usage_type_str,
+        eq_cond,
+        daily,
+        (getattr(r, "terminal_disinfection", None) or "").replace("\n", " "),
         (r.note or "").replace("\n", " "),
     ]
 
@@ -75,6 +98,9 @@ def _usage_query(
     user_id: Optional[int] = None,
     from_time: Optional[datetime] = None,
     to_time: Optional[datetime] = None,
+    registration_date_from: Optional[date] = None,
+    registration_date_to: Optional[date] = None,
+    bed_number: Optional[str] = None,
 ):
     query = db.query(models.UsageRecord).filter(models.UsageRecord.is_deleted.is_(False))
     if device_code:
@@ -87,6 +113,12 @@ def _usage_query(
         query = query.filter(models.UsageRecord.start_time >= from_time)
     if to_time:
         query = query.filter(models.UsageRecord.start_time <= to_time)
+    if registration_date_from is not None:
+        query = query.filter(models.UsageRecord.registration_date >= registration_date_from)
+    if registration_date_to is not None:
+        query = query.filter(models.UsageRecord.registration_date <= registration_date_to)
+    if bed_number:
+        query = query.filter(models.UsageRecord.bed_number == bed_number.strip())
     return query.order_by(models.UsageRecord.start_time.desc())
 
 
@@ -97,12 +129,18 @@ def _fetch_export_records(
     user_id: Optional[int] = None,
     from_time: Optional[datetime] = None,
     to_time: Optional[datetime] = None,
+    registration_date_from: Optional[date] = None,
+    registration_date_to: Optional[date] = None,
+    bed_number: Optional[str] = None,
     limit: Optional[int] = None,
     offset: int = 0,
 ):
     """获取导出用记录，可分批（limit/offset）。limit=None 表示不限制条数（调用方需保证不超过 EXPORT_MAX_RECORDS）。"""
     query = (
-        _usage_query(db, device_code, dept, user_id, from_time, to_time)
+        _usage_query(
+            db, device_code, dept, user_id, from_time, to_time,
+            registration_date_from, registration_date_to, bed_number,
+        )
         .options(
             joinedload(models.UsageRecord.device),
             joinedload(models.UsageRecord.user),
@@ -160,6 +198,9 @@ def create_usage_record(
     data["usage_type"] = str(payload.usage_type)
     if not data.get("start_time"):
         data["start_time"] = datetime.utcnow()
+    # 维护登记：若前端传了登记日期则用，否则用当天（后台 created_at 仍为实际提交时间）
+    if data.get("registration_date") is None:
+        data["registration_date"] = datetime.utcnow().date()
     photo_urls_list = data.pop("photo_urls", None)
     if photo_urls_list:
         data["photo_urls"] = ",".join(photo_urls_list)
@@ -208,6 +249,9 @@ def _list_usage_query(
     user_id: Optional[int] = None,
     from_time: Optional[datetime] = None,
     to_time: Optional[datetime] = None,
+    registration_date_from: Optional[date] = None,
+    registration_date_to: Optional[date] = None,
+    bed_number: Optional[str] = None,
     include_deleted: bool = False,
 ):
     query = db.query(models.UsageRecord)
@@ -225,6 +269,12 @@ def _list_usage_query(
         query = query.filter(models.UsageRecord.start_time >= from_time)
     if to_time:
         query = query.filter(models.UsageRecord.start_time <= to_time)
+    if registration_date_from is not None:
+        query = query.filter(models.UsageRecord.registration_date >= registration_date_from)
+    if registration_date_to is not None:
+        query = query.filter(models.UsageRecord.registration_date <= registration_date_to)
+    if bed_number:
+        query = query.filter(models.UsageRecord.bed_number == bed_number.strip())
     return query.order_by(models.UsageRecord.start_time.desc())
 
 
@@ -235,6 +285,9 @@ def count_usage_records(
     user_id: Optional[int] = Query(None),
     from_time: Optional[datetime] = Query(None),
     to_time: Optional[datetime] = Query(None),
+    registration_date_from: Optional[date] = Query(None, description="登记日期起"),
+    registration_date_to: Optional[date] = Query(None, description="登记日期止"),
+    bed_number: Optional[str] = Query(None, description="床号"),
     include_deleted: bool = Query(False, description="仅本人查看时有效，为 true 则含已撤销记录"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
@@ -242,9 +295,12 @@ def count_usage_records(
     """返回符合条件的使用记录总数，用于分页与工作台统计。"""
     if current_user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后查看记录")
-    # 本人查看（未传 user_id）时允许包含已撤销记录，不区分角色
     allow_include_deleted = (user_id is None) and include_deleted
-    query = _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time, include_deleted=allow_include_deleted)
+    query = _list_usage_query(
+        db, current_user, device_code, dept, user_id, from_time, to_time,
+        registration_date_from, registration_date_to, bed_number,
+        include_deleted=allow_include_deleted,
+    )
     return {"total": query.count()}
 
 
@@ -255,6 +311,9 @@ def list_usage_records(
     user_id: Optional[int] = Query(None),
     from_time: Optional[datetime] = Query(None),
     to_time: Optional[datetime] = Query(None),
+    registration_date_from: Optional[date] = Query(None, description="登记日期起"),
+    registration_date_to: Optional[date] = Query(None, description="登记日期止"),
+    bed_number: Optional[str] = Query(None, description="床号"),
     limit: int = Query(100, ge=1, le=500, description="每页条数"),
     offset: int = Query(0, ge=0, description="偏移量，用于分页"),
     include_deleted: bool = Query(False, description="仅本人查看时有效，为 true 则含已撤销记录"),
@@ -266,10 +325,13 @@ def list_usage_records(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先登录后查看记录",
         )
-    # 本人查看（未传 user_id）时允许包含已撤销记录，不区分角色
     allow_include_deleted = (user_id is None) and include_deleted
     query = (
-        _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time, include_deleted=allow_include_deleted)
+        _list_usage_query(
+            db, current_user, device_code, dept, user_id, from_time, to_time,
+            registration_date_from, registration_date_to, bed_number,
+            include_deleted=allow_include_deleted,
+        )
         .options(
             joinedload(models.UsageRecord.device),
             joinedload(models.UsageRecord.user),
@@ -388,8 +450,15 @@ def _build_pdf(records: list, usage_type_label_map: dict) -> bytes:
     return buf.read()
 
 
-def _export_csv_generator(db: Session, device_code, dept, user_id, from_time, to_time, usage_type_label_map: dict):
-    """流式生成 CSV：先表头，再分批查询写入，仅包含查询页展示的列。"""
+def _export_csv_generator(
+    db: Session,
+    device_code, dept, user_id, from_time, to_time,
+    registration_date_from: Optional[date] = None,
+    registration_date_to: Optional[date] = None,
+    bed_number: Optional[str] = None,
+    usage_type_label_map: Optional[dict] = None,
+):
+    """流式生成 CSV：先表头，再分批查询写入。"""
     import codecs
     yield codecs.BOM_UTF8
     output = StringIO()
@@ -402,6 +471,7 @@ def _export_csv_generator(db: Session, device_code, dept, user_id, from_time, to
     while offset < EXPORT_MAX_RECORDS:
         batch = _fetch_export_records(
             db, device_code, dept, user_id, from_time, to_time,
+            registration_date_from, registration_date_to, bed_number,
             limit=batch_size, offset=offset,
         )
         if not batch:
@@ -424,6 +494,9 @@ def export_usage_records(
     user_id: Optional[int] = Query(None),
     from_time: Optional[datetime] = Query(None),
     to_time: Optional[datetime] = Query(None),
+    registration_date_from: Optional[date] = Query(None, description="登记日期起"),
+    registration_date_to: Optional[date] = Query(None, description="登记日期止"),
+    bed_number: Optional[str] = Query(None, description="床号"),
     format: str = Query("csv", description="导出格式: csv / xlsx / pdf"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
@@ -433,7 +506,10 @@ def export_usage_records(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="仅管理员可导出",
         )
-    total = _usage_query(db, device_code, dept, user_id, from_time, to_time).count()
+    total = _usage_query(
+        db, device_code, dept, user_id, from_time, to_time,
+        registration_date_from, registration_date_to, bed_number,
+    ).count()
     if total > EXPORT_MAX_RECORDS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -445,11 +521,19 @@ def export_usage_records(
     if fmt == "csv":
         log_audit(db, current_user.id, "usage.export", None, None, f"format={fmt},count={total}")
         return StreamingResponse(
-            _export_csv_generator(db, device_code, dept, user_id, from_time, to_time, usage_type_label_map),
+            _export_csv_generator(
+                db, device_code, dept, user_id, from_time, to_time,
+                registration_date_from, registration_date_to, bed_number,
+                usage_type_label_map,
+            ),
             media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": 'attachment; filename="usage_records.csv"'},
         )
-    records = _fetch_export_records(db, device_code, dept, user_id, from_time, to_time, limit=EXPORT_MAX_RECORDS)
+    records = _fetch_export_records(
+        db, device_code, dept, user_id, from_time, to_time,
+        registration_date_from, registration_date_to, bed_number,
+        limit=EXPORT_MAX_RECORDS,
+    )
     log_audit(db, current_user.id, "usage.export", None, None, f"format={fmt},count={len(records)}")
     if fmt == "xlsx":
         content = _build_excel(records, usage_type_label_map)

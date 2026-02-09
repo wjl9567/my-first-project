@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -90,10 +90,25 @@ class UsageRecord(Base):
     patient_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # 简化：仅记录开始时间
+    # 简化：仅记录开始时间；维护登记时表示开机时间
     start_time: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, index=True
     )
+    # 维护登记：关机时间
+    end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # 维护登记：登记日期（护士选择的那天），后台同时保留 created_at 为实际提交时间
+    registration_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    bed_number: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    id_number: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    patient_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    equipment_condition: Mapped[Optional[str]] = mapped_column(
+        String(16), nullable=True
+    )  # normal / abnormal
+    daily_maintenance: Mapped[Optional[str]] = mapped_column(
+        String(16), nullable=True
+    )  # clean / disinfect
+    terminal_disinfection: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     photo_urls: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True

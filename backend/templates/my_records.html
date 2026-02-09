@@ -57,6 +57,46 @@
         justify-content: space-between;
         margin-bottom: 16px;
       }
+      .filters {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+      }
+      .filter-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .filter-row:last-of-type { margin-bottom: 0; }
+      .filter-row label { font-size: 13px; color: var(--text-muted); min-width: 64px; }
+      .filter-row input[type="date"],
+      .filter-row input[type="text"] {
+        flex: 1;
+        min-width: 0;
+        max-width: 140px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .filter-sep { font-size: 12px; color: var(--text-muted); }
+      .btn-apply {
+        min-height: 36px;
+        padding: 0 16px;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-apply:active { opacity: 0.9; }
       .toolbar .hint {
         font-size: 14px;
         color: var(--text-muted);
@@ -115,6 +155,12 @@
       .record-card .meta {
         font-size: 14px;
         color: var(--text);
+      }
+      .record-card .extra {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 6px;
+        line-height: 1.5;
       }
       .record-card .note {
         font-size: 14px;
@@ -259,6 +305,19 @@
     </div>
 
     <div class="wrap">
+      <div class="filters">
+        <div class="filter-row">
+          <label>登记日期</label>
+          <input type="date" id="filter-date-from" />
+          <span class="filter-sep">至</span>
+          <input type="date" id="filter-date-to" />
+        </div>
+        <div class="filter-row">
+          <input type="text" id="filter-bed" placeholder="床号" />
+          <input type="text" id="filter-device" placeholder="设备编号" />
+          <button type="button" class="btn-apply" id="btn-apply">筛选</button>
+        </div>
+      </div>
       <div class="toolbar">
         <span class="hint" id="count-hint"></span>
         <button type="button" class="btn-refresh" id="btn-refresh">刷新</button>
@@ -354,6 +413,17 @@
         errorEl.style.display = "none";
       }
 
+      function formatDateOnly(iso) {
+        if (!iso) return "";
+        var d = new Date(iso);
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      }
+      function formatTimeOnly(iso) {
+        if (!iso) return "";
+        var d = new Date(iso);
+        return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+      }
+
       function renderRecordCards(records) {
         listEl.innerHTML = "";
         (records || []).forEach(function (r) {
@@ -362,13 +432,28 @@
           card.className = "record-card" + (isUndo ? " record-card-undo" : "");
           var typeText = typeNames[r.usage_type] || String(r.usage_type);
           var undoTag = isUndo ? "<span class=\"record-undo-tag\">已撤销</span>" : "";
+          var regDate = r.registration_date ? formatDateOnly(r.registration_date) : "";
+          var deviceLine = escapeHtml(r.device_name ? (r.device_name + "（" + (r.device_code || "") + "）") : ("设备 " + (r.device_code || "")));
+          var extraParts = [];
+          if (r.bed_number) extraParts.push("床号 " + escapeHtml(r.bed_number));
+          if (r.id_number) extraParts.push("ID " + escapeHtml(r.id_number));
+          if (r.patient_name) extraParts.push(escapeHtml(r.patient_name));
+          if (r.start_time) extraParts.push("开机 " + formatTimeOnly(r.start_time));
+          if (r.end_time) extraParts.push("关机 " + formatTimeOnly(r.end_time));
+          var eqCond = r.equipment_condition === "abnormal" ? "异常" : (r.equipment_condition === "normal" ? "正常" : "");
+          if (eqCond) extraParts.push("状况 " + eqCond);
+          var daily = r.daily_maintenance === "disinfect" ? "消毒" : (r.daily_maintenance === "clean" ? "清洁" : "");
+          if (daily) extraParts.push(daily);
+          var extraHtml = extraParts.length ? "<div class=\"extra\">" + extraParts.join(" · ") + "</div>" : "";
           var actionsHtml = isUndo
             ? ""
             : "<div class=\"card-actions\"><button type=\"button\" class=\"btn-undo\" data-id=\"" + (r.id || "") + "\">撤销</button></div>";
           card.innerHTML =
-            "<div class=\"time\">" + escapeHtml(formatTime(r.start_time)) + undoTag + "</div>" +
-            "<div class=\"device\">" + escapeHtml(r.device_name ? (r.device_name + "（" + (r.device_code || "") + "）") : ("设备编号 " + (r.device_code || ""))) + " · " + escapeHtml(typeText) + "</div>" +
-            "<div class=\"meta\">使用类型：" + escapeHtml(typeText) + "</div>" +
+            "<div class=\"time\">" + (regDate || formatTime(r.start_time)) + undoTag + "</div>" +
+            "<div class=\"device\">" + deviceLine + " · " + escapeHtml(typeText) + "</div>" +
+            (r.user_name ? "<div class=\"meta\">维护人：" + escapeHtml(r.user_name) + "</div>" : "<div class=\"meta\">使用类型：" + escapeHtml(typeText) + "</div>") +
+            extraHtml +
+            (r.terminal_disinfection ? "<div class=\"note\">终末消毒：" + escapeHtml(r.terminal_disinfection.length > 40 ? r.terminal_disinfection.slice(0, 40) + "…" : r.terminal_disinfection) + "</div>" : "") +
             (r.note ? "<div class=\"note\">" + escapeHtml(r.note.length > 50 ? r.note.slice(0, 50) + "…" : r.note) + "</div>" : "") +
             actionsHtml;
           listEl.appendChild(card);
@@ -487,10 +572,29 @@
         countHint.textContent = "";
       }
 
+      function getFilterParams() {
+        var dateFrom = document.getElementById("filter-date-from");
+        var dateTo = document.getElementById("filter-date-to");
+        var bed = document.getElementById("filter-bed");
+        var device = document.getElementById("filter-device");
+        var parts = [];
+        if (dateFrom && dateFrom.value) parts.push("registration_date_from=" + encodeURIComponent(dateFrom.value));
+        if (dateTo && dateTo.value) parts.push("registration_date_to=" + encodeURIComponent(dateTo.value));
+        if (bed && bed.value.trim()) parts.push("bed_number=" + encodeURIComponent(bed.value.trim()));
+        if (device && device.value.trim()) parts.push("device_code=" + encodeURIComponent(device.value.trim()));
+        return parts.join("&");
+      }
+      function buildListParams(offset) {
+        var params = "limit=" + pageSize + "&offset=" + offset + "&include_deleted=true";
+        var filter = getFilterParams();
+        if (filter) params += "&" + filter;
+        return params;
+      }
+
       function loadRecords(append) {
         if (!append) showLoading();
         var offset = append ? recordsLoaded.length : 0;
-        var listUrl = "/api/usage?limit=" + pageSize + "&offset=" + offset + "&include_deleted=true";
+        var listUrl = "/api/usage?" + buildListParams(offset);
         if (append) {
           btnLoadMore.disabled = true;
           btnLoadMore.textContent = "加载中...";
@@ -513,7 +617,10 @@
             if (!data || !Array.isArray(data)) return;
             var nextList = append ? recordsLoaded.concat(data) : data;
             if (!append) {
-              fetch("/api/usage/count?include_deleted=true", { headers: authHeaders() })
+              var countUrl = "/api/usage/count?include_deleted=true";
+              var fp = getFilterParams();
+              if (fp) countUrl += "&" + fp;
+              fetch(countUrl, { headers: authHeaders() })
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .catch(function () { return null; })
                 .then(function (o) {
@@ -540,6 +647,8 @@
       }
 
       btnRefresh.addEventListener("click", function () { loadRecords(false); });
+      var btnApply = document.getElementById("btn-apply");
+      if (btnApply) btnApply.addEventListener("click", function () { loadRecords(false); });
       if (btnLoadMore) btnLoadMore.addEventListener("click", loadMore);
       var undoConfirmOk = document.getElementById("undo-confirm-ok");
       var undoConfirmCancel = document.getElementById("undo-confirm-cancel");
