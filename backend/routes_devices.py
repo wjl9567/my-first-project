@@ -45,6 +45,22 @@ def create_device(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("device_admin", "sys_admin")),
 ):
+    # 设备编号、名称、科室均为必填
+    if not (payload.device_code and str(payload.device_code).strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="设备编号为必填项",
+        )
+    if not (payload.name and str(payload.name).strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="设备名称为必填项",
+        )
+    if not (payload.dept is not None and str(payload.dept).strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="科室为必填项",
+        )
     # 检查 device_code 唯一
     existed = (
         db.query(models.Device)
@@ -83,12 +99,17 @@ def _devices_query(
     include_inactive: bool = False,
     include_deleted: bool = False,
     deleted_only: bool = False,
+    inactive_only: bool = False,
     is_admin: bool = False,
 ):
     query = db.query(models.Device)
     if _devices_table_has_is_deleted() and deleted_only and is_admin:
         query = query.filter(models.Device.is_deleted.is_(True))
         # “只显示已删除”时不按启用状态过滤，便于查看全部已删除
+    elif inactive_only and is_admin:
+        query = query.filter(models.Device.is_active.is_(False))
+        if _devices_table_has_is_deleted():
+            query = query.filter(models.Device.is_deleted.is_(False))
     else:
         if not (include_inactive and is_admin):
             query = query.filter(models.Device.is_active.is_(True))
@@ -139,12 +160,13 @@ def count_devices(
     include_inactive: bool = Query(False),
     include_deleted: bool = Query(False),
     deleted_only: bool = Query(False, description="管理员可传 true 仅统计已删除设备"),
+    inactive_only: bool = Query(False, description="管理员可传 true 仅统计已停用设备"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     """返回符合条件的设备总数，用于分页展示。"""
     is_admin = current_user and current_user.role in ("device_admin", "sys_admin")
-    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, inactive_only, is_admin)
     return {"total": query.count()}
 
 
@@ -157,22 +179,39 @@ def list_devices(
     include_inactive: bool = Query(False, description="管理员可传 true 查看含已停用设备"),
     include_deleted: bool = Query(False, description="管理员可传 true 查看全部（含已删除），与 deleted_only 二选一"),
     deleted_only: bool = Query(False, description="管理员可传 true 仅查看已删除设备"),
+    inactive_only: bool = Query(False, description="管理员可传 true 仅查看已停用设备"),
     limit: int = Query(100, ge=1, le=500, description="每页条数"),
     offset: int = Query(0, ge=0, description="偏移量，用于分页"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     is_admin = current_user and current_user.role in ("device_admin", "sys_admin")
-    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, inactive_only, is_admin)
     return query.offset(offset).limit(limit).all()
+
+
+# 设备状态默认中文（字典表为空或未匹配时兜底）
+_DEVICE_STATUS_DEFAULT_LABELS = {
+    "1": "可用",
+    "2": "使用中",
+    "3": "维修中",
+    "4": "故障",
+    "5": "报废",
+}
 
 
 def _device_to_export_row(d: models.Device, status_label_map: dict) -> List[str]:
     """单行设备导出数据，状态为中文。"""
-    status_code = getattr(d, "status", None) or "1"
-    if isinstance(status_code, int):
-        status_code = str(status_code)
-    status_label = status_label_map.get(status_code, status_code)
+    status_code = getattr(d, "status", None)
+    if status_code is None:
+        status_code = "1"
+    status_code_str = str(status_code).strip()
+    status_label = (
+        status_label_map.get(status_code_str)
+        or (status_label_map.get(int(status_code_str)) if status_code_str.isdigit() else None)
+        or _DEVICE_STATUS_DEFAULT_LABELS.get(status_code_str)
+        or status_code_str
+    )
     return [
         d.device_code or "",
         d.name or "",
@@ -192,6 +231,7 @@ def export_devices(
     include_inactive: bool = Query(True, description="导出含已停用设备"),
     include_deleted: bool = Query(False, description="导出含已删除设备"),
     deleted_only: bool = Query(False, description="仅导出已删除设备"),
+    inactive_only: bool = Query(False, description="仅导出已停用设备"),
     format: str = Query("csv", description="导出格式: csv / xlsx"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
@@ -203,14 +243,25 @@ def export_devices(
             detail="仅管理员可导出",
         )
     is_admin = True
-    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, is_admin)
+    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, inactive_only, is_admin)
     devices = query.all()
     status_label_map = {}
     for item in db.query(models.DictItem).filter(
         models.DictItem.dict_type == "device_status",
         models.DictItem.is_deleted.is_(False),
     ).all():
-        status_label_map[item.code] = item.label or item.code
+        label = (getattr(item, "label", None) or str(item.code) or "").strip()
+        if not label:
+            label = str(item.code) if item.code is not None else ""
+        code_raw = getattr(item, "code", None)
+        if code_raw is not None:
+            code_key = str(code_raw).strip()
+            status_label_map[code_key] = label
+            if code_key.isdigit():
+                status_label_map[int(code_key)] = label
+    for k, v in _DEVICE_STATUS_DEFAULT_LABELS.items():
+        if k not in status_label_map:
+            status_label_map[k] = v
     rows = [DEVICE_EXPORT_HEADERS] + [_device_to_export_row(d, status_label_map) for d in devices]
     fmt = (format or "csv").lower().strip()
     log_audit(db, current_user.id, "device.export", None, None, f"format={fmt},count={len(devices)}")
@@ -296,11 +347,20 @@ def update_device(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("device_admin", "sys_admin")),
 ):
-    """更新设备（名称、科室、位置、状态、启用、软删除）。仅管理员。"""
+    """更新设备（编号、名称、科室、位置、状态、启用、软删除）。仅管理员。"""
     device = db.get(models.Device, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="设备不存在")
     was_deleted = getattr(device, "is_deleted", False) if _devices_table_has_is_deleted() else False
+    if payload.device_code is not None:
+        new_code = (payload.device_code or "").strip()
+        if not new_code:
+            raise HTTPException(status_code=400, detail="设备编号不能为空")
+        if new_code != (device.device_code or ""):
+            existed = db.query(models.Device).filter(models.Device.device_code == new_code).first()
+            if existed and existed.id != device_id:
+                raise HTTPException(status_code=400, detail="设备编号已存在")
+            device.device_code = new_code
     if payload.name is not None:
         device.name = payload.name.strip()
     if payload.dept is not None:

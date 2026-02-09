@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import models, schemas
 from .audit import log_audit
 from .auth import get_current_user_optional, get_current_user
+from .config import settings
 from .database import get_db
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
@@ -75,7 +76,7 @@ def _usage_query(
     from_time: Optional[datetime] = None,
     to_time: Optional[datetime] = None,
 ):
-    query = db.query(models.UsageRecord)
+    query = db.query(models.UsageRecord).filter(models.UsageRecord.is_deleted.is_(False))
     if device_code:
         query = query.filter(models.UsageRecord.device_code == device_code)
     if dept:
@@ -136,16 +137,17 @@ def create_usage_record(
         )
         .first()
     )
-    if not device:
-        raise HTTPException(status_code=404, detail="设备不存在")
+    if not device or getattr(device, "is_deleted", False):
+        raise HTTPException(status_code=404, detail="设备不存在或已停用/已删除")
 
-    # 防重复：短时间同一用户、同一设备只保留一条
+    # 防重复：短时间同一用户、同一设备只保留一条（不含已撤销）
     cutoff = datetime.utcnow() - timedelta(seconds=DUPLICATE_WINDOW_SECONDS)
     existing = (
         db.query(models.UsageRecord)
         .filter(
             models.UsageRecord.user_id == user.id,
             models.UsageRecord.device_code == payload.device_code,
+            models.UsageRecord.is_deleted.is_(False),
             models.UsageRecord.created_at >= cutoff,
         )
         .order_by(models.UsageRecord.created_at.desc())
@@ -172,6 +174,32 @@ def create_usage_record(
     return record
 
 
+@router.post("/{record_id}/undo", status_code=status.HTTP_204_NO_CONTENT)
+def undo_usage_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """用户撤销自己的一条登记记录（软删除），仅本人可操作，且仅支持时间范围内的记录。"""
+    record = db.get(models.UsageRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    if record.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能撤销自己的登记记录")
+    if getattr(record, "is_deleted", False):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该记录已撤销")
+    window_hours = max(0, getattr(settings, "UNDO_WINDOW_HOURS", 24))
+    cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+    if (record.created_at or record.start_time) < cutoff:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"仅支持撤销最近 {window_hours} 小时内的登记记录",
+        )
+    record.is_deleted = True
+    db.commit()
+    return None
+
+
 def _list_usage_query(
     db: Session,
     current_user: models.User,
@@ -180,8 +208,11 @@ def _list_usage_query(
     user_id: Optional[int] = None,
     from_time: Optional[datetime] = None,
     to_time: Optional[datetime] = None,
+    include_deleted: bool = False,
 ):
     query = db.query(models.UsageRecord)
+    if not include_deleted:
+        query = query.filter(models.UsageRecord.is_deleted.is_(False))
     if current_user.role == "user" and user_id is None:
         query = query.filter(models.UsageRecord.user_id == current_user.id)
     elif user_id is not None:
@@ -204,13 +235,16 @@ def count_usage_records(
     user_id: Optional[int] = Query(None),
     from_time: Optional[datetime] = Query(None),
     to_time: Optional[datetime] = Query(None),
+    include_deleted: bool = Query(False, description="仅本人查看时有效，为 true 则含已撤销记录"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     """返回符合条件的使用记录总数，用于分页与工作台统计。"""
     if current_user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后查看记录")
-    query = _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time)
+    # 本人查看（未传 user_id）时允许包含已撤销记录，不区分角色
+    allow_include_deleted = (user_id is None) and include_deleted
+    query = _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time, include_deleted=allow_include_deleted)
     return {"total": query.count()}
 
 
@@ -223,6 +257,7 @@ def list_usage_records(
     to_time: Optional[datetime] = Query(None),
     limit: int = Query(100, ge=1, le=500, description="每页条数"),
     offset: int = Query(0, ge=0, description="偏移量，用于分页"),
+    include_deleted: bool = Query(False, description="仅本人查看时有效，为 true 则含已撤销记录"),
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
@@ -231,8 +266,10 @@ def list_usage_records(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先登录后查看记录",
         )
+    # 本人查看（未传 user_id）时允许包含已撤销记录，不区分角色
+    allow_include_deleted = (user_id is None) and include_deleted
     query = (
-        _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time)
+        _list_usage_query(db, current_user, device_code, dept, user_id, from_time, to_time, include_deleted=allow_include_deleted)
         .options(
             joinedload(models.UsageRecord.device),
             joinedload(models.UsageRecord.user),
@@ -244,6 +281,7 @@ def list_usage_records(
             update={
                 "device_name": r.device.name if r.device else None,
                 "user_name": r.user.real_name if r.user else None,
+                "is_deleted": getattr(r, "is_deleted", False),
             }
         )
         for r in records

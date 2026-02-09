@@ -50,6 +50,15 @@
         font-size: 13px;
         color: var(--text-muted);
       }
+      .dev-login-hint {
+        margin: 0 16px 12px;
+        padding: 10px 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+        background: #f1f5f9;
+        border-radius: 8px;
+      }
+      .dev-login-hint a { color: var(--primary); font-weight: 500; }
       .card {
         max-width: 420px;
         margin: 0 auto;
@@ -404,6 +413,9 @@
       <h1>设备使用登记</h1>
       <p class="sub">扫一扫 或 输入设备编号 → 填写 → 提交</p>
     </div>
+    <div id="dev-login-hint" class="dev-login-hint" style="display:none;">
+      开发环境：请先在 <a href="/admin">后台</a> 使用管理员账号登录（需在 backend 目录 .env 中配置 ADMIN_USERNAME、ADMIN_PASSWORD），同一浏览器再刷新本页即可登记。
+    </div>
 
     <div class="card">
       <div class="device-entry">
@@ -437,7 +449,7 @@
 
         <div class="field optional">
           <label>备注</label>
-          <textarea id="note" rows="2" placeholder="如：12床术后监护"></textarea>
+          <textarea id="note" rows="2" maxlength="500" placeholder="如：12床术后监护（最多500字）"></textarea>
         </div>
 
         <div class="field optional field-hidden" id="field-patient-id">
@@ -495,6 +507,14 @@
           }
         }
       })();
+      (function () {
+        try {
+          if (!localStorage.getItem("device_scan_token") && (location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+            var h = document.getElementById("dev-login-hint");
+            if (h) h.style.display = "block";
+          }
+        } catch (e) {}
+      })();
       function authHeaders() {
         try {
           const t = localStorage.getItem("device_scan_token");
@@ -537,6 +557,7 @@
 
       function setValidationInvalid() {
         device = null;
+        successPanel.style.display = "none";
         showDeviceCodeError(DEVICE_CODE_ERROR_MSG);
         clearFormDataExceptDeviceCode();
         deviceCodeInput.focus();
@@ -562,6 +583,7 @@
       }
 
       function setDeviceLoaded(d) {
+        successPanel.style.display = "none";
         device = d;
         deviceCodeInput.value = d.device_code;
         deviceInfoEl.textContent = d.name + "（" + d.device_code + "） — " + (d.dept || "未分配科室");
@@ -585,6 +607,7 @@
       }
 
       async function loadDeviceById(id) {
+        successPanel.style.display = "none";
         showDeviceState("正在加载...", false);
         deviceInfoEl.classList.add("loading");
         showDeviceCodeError("");
@@ -599,6 +622,7 @@
       }
 
       async function loadDeviceByCode(code) {
+        successPanel.style.display = "none";
         const trimmed = (code || "").trim();
         if (!trimmed) {
           showDeviceState("请输入设备编号", true);
@@ -767,8 +791,11 @@
             body: JSON.stringify(payload),
           });
           if (!res.ok) {
+            if (res.status === 401) try { localStorage.removeItem("device_scan_token"); } catch (e) {}
             var err = await res.json().catch(function () { return {}; });
             var msg = res.status === 401 ? "请先登录后登记" : (err.detail || "提交失败");
+            if (res.status === 401 && (location.hostname === "localhost" || location.hostname === "127.0.0.1"))
+              msg += " 开发环境可 <a href=\"/admin\">前往后台登录</a> 后刷新本页。";
             throw new Error(msg);
           }
           if (usageTypeSelect.options.length) usageTypeSelect.value = usageTypeSelect.options[0].value;
@@ -779,8 +806,12 @@
           successPanel.style.display = "block";
           successPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
         } catch (e) {
-          statusEl.textContent = e.message;
           statusEl.className = "status error";
+          if (e.message && e.message.indexOf("<a ") !== -1) {
+            statusEl.innerHTML = e.message;
+          } else {
+            statusEl.textContent = e.message;
+          }
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = "提交登记";
@@ -790,6 +821,7 @@
       submitBtn.addEventListener("click", submitUsage);
       btnNextDevice.addEventListener("click", function () {
         successPanel.style.display = "none";
+        deviceCodeInput.focus();
       });
 
       async function loadUsageTypeOptions() {

@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from .config import JWT_SECRET_DEFAULT, settings
 from .database import Base, engine
 from . import models
-from . import routes_auth, routes_audit, routes_devices, routes_dict, routes_usage
+from . import routes_auth, routes_audit, routes_devices, routes_dict, routes_usage, routes_users
 from .admin_access import AdminAccessMiddleware
 
 _logger = logging.getLogger(__name__)
@@ -89,9 +89,10 @@ def create_app() -> FastAPI:
     # H5 页面：我的记录
     @app.get("/h5/my-records", response_class=HTMLResponse)
     async def h5_my_records(request: Request):
+        undo_hours = max(0, getattr(settings, "UNDO_WINDOW_HOURS", 24))
         return templates.TemplateResponse(
             "my_records.html",
-            {"request": request, "app_version": app.version},
+            {"request": request, "app_version": app.version, "undo_window_hours": undo_hours},
         )
 
     # 后台管理（设备列表、使用记录查询与导出，需管理员登录）
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_devices.router)
     app.include_router(routes_dict.router)
     app.include_router(routes_usage.router)
+    app.include_router(routes_users.router)
 
     static_dir = _BASE / "static"
     if static_dir.is_dir():

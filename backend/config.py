@@ -39,6 +39,8 @@ def get_settings():
         ALLOWED_ADMIN_IPS: str = os.getenv("ALLOWED_ADMIN_IPS", "")
         # 企业微信 HTTP 请求超时（秒）
         WECOM_HTTP_TIMEOUT: float = float(os.getenv("WECOM_HTTP_TIMEOUT", "10.0"))
+        # 登记记录可撤销的时间范围（小时），超过则不允许撤销，默认 24
+        UNDO_WINDOW_HOURS: int = int(os.getenv("UNDO_WINDOW_HOURS", "24"))
     return Settings()
 
 

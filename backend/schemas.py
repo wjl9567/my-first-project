@@ -24,6 +24,20 @@ class UserRead(UserBase):
         from_attributes = True
 
 
+class UserListRead(BaseModel):
+    """管理端用户列表项（含用户名）。"""
+    id: int
+    username: Optional[str] = None
+    wx_userid: Optional[str] = None
+    real_name: str
+    role: str
+    dept: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class DeviceBase(BaseModel):
     device_code: str = Field(..., description="设备内部编号，唯一")
     name: str
@@ -39,7 +53,8 @@ class DeviceCreate(DeviceBase):
 
 
 class DeviceUpdate(BaseModel):
-    """部分更新：名称、科室、位置、状态、启用、软删除标识"""
+    """部分更新：编号、名称、科室、位置、状态、启用、软删除标识"""
+    device_code: Optional[str] = Field(None, max_length=64, description="修改时须保证唯一")
     name: Optional[str] = Field(None, max_length=128)
     dept: Optional[str] = Field(None, max_length=128)
     location: Optional[str] = Field(None, max_length=256)
@@ -72,7 +87,7 @@ class UsageRecordBase(BaseModel):
     usage_type: int = Field(..., description="使用类型字典编码（数字）")
     dept_at_use: Optional[str] = None
     patient_id: Optional[str] = None
-    note: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=500, description="备注，最多500字")
     start_time: Optional[datetime] = None
     photo_urls: Optional[List[str]] = None
     source: Optional[str] = None
@@ -98,6 +113,7 @@ class UsageRecordRead(UsageRecordBase):
     user_name: Optional[str] = None
     device_name: Optional[str] = None
     created_at: datetime
+    is_deleted: bool = False
 
     @field_validator("usage_type", mode="before")
     @classmethod

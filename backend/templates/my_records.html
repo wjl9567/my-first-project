@@ -123,6 +123,62 @@
         padding-top: 8px;
         border-top: 1px solid var(--border);
       }
+      .record-card .card-actions {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .record-card .btn-undo {
+        padding: 6px 14px;
+        font-size: 13px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+      .record-card .btn-undo:active { opacity: 0.9; }
+      .record-card .btn-undo:disabled { opacity: 0.6; cursor: not-allowed; }
+      .record-card.record-card-undo {
+        background: #f1f5f9;
+        color: var(--text-muted);
+      }
+      .record-card-undo .device { color: var(--text-muted); }
+      .record-card-undo .record-undo-tag {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        font-size: 12px;
+        border-radius: 4px;
+        background: #cbd5e1;
+        color: #64748b;
+      }
+      .undo-confirm-overlay {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        padding: 20px;
+      }
+      .undo-confirm-box {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 20px;
+        max-width: 320px;
+        width: 100%;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .undo-confirm-box .msg { font-size: 15px; color: var(--text); margin-bottom: 16px; line-height: 1.5; }
+      .undo-confirm-box .btns { display: flex; gap: 12px; justify-content: flex-end; }
+      .undo-confirm-box .btns button { padding: 10px 20px; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+      .undo-confirm-box .btns .btn-cancel { background: var(--border); color: var(--text); }
+      .undo-confirm-box .btns .btn-ok { background: var(--primary-dark); color: #fff; }
       .empty-state {
         text-align: center;
         padding: 48px 24px;
@@ -156,6 +212,8 @@
         color: var(--text-muted);
       }
       .error-msg { color: #dc2626; }
+      .error-msg p { margin: 8px 0; }
+      .error-msg .error-login-link { color: var(--primary); font-weight: 500; }
       .bottom-nav {
         position: fixed;
         left: 0;
@@ -217,6 +275,16 @@
           <a href="/h5/scan">去登记</a>
         </div>
         <div class="error-msg" id="error-msg" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="undo-confirm-wrap" class="undo-confirm-overlay" style="display:none;">
+      <div class="undo-confirm-box">
+        <p class="msg">仅支持撤销最近 {{ undo_window_hours|default(24) }} 小时内的登记，撤销后不能恢复。请确认是否撤销这条登记记录？</p>
+        <div class="btns">
+          <button type="button" class="btn-cancel" id="undo-confirm-cancel">取消</button>
+          <button type="button" class="btn-ok" id="undo-confirm-ok">确定</button>
+        </div>
       </div>
     </div>
 
@@ -289,16 +357,96 @@
       function renderRecordCards(records) {
         listEl.innerHTML = "";
         (records || []).forEach(function (r) {
+          var isUndo = !!r.is_deleted;
           var card = document.createElement("div");
-          card.className = "record-card";
+          card.className = "record-card" + (isUndo ? " record-card-undo" : "");
           var typeText = typeNames[r.usage_type] || String(r.usage_type);
+          var undoTag = isUndo ? "<span class=\"record-undo-tag\">已撤销</span>" : "";
+          var actionsHtml = isUndo
+            ? ""
+            : "<div class=\"card-actions\"><button type=\"button\" class=\"btn-undo\" data-id=\"" + (r.id || "") + "\">撤销</button></div>";
           card.innerHTML =
-            "<div class=\"time\">" + escapeHtml(formatTime(r.start_time)) + "</div>" +
+            "<div class=\"time\">" + escapeHtml(formatTime(r.start_time)) + undoTag + "</div>" +
             "<div class=\"device\">" + escapeHtml(r.device_name ? (r.device_name + "（" + (r.device_code || "") + "）") : ("设备编号 " + (r.device_code || ""))) + " · " + escapeHtml(typeText) + "</div>" +
             "<div class=\"meta\">使用类型：" + escapeHtml(typeText) + "</div>" +
-            (r.note ? "<div class=\"note\">" + escapeHtml(r.note.length > 50 ? r.note.slice(0, 50) + "…" : r.note) + "</div>" : "");
+            (r.note ? "<div class=\"note\">" + escapeHtml(r.note.length > 50 ? r.note.slice(0, 50) + "…" : r.note) + "</div>" : "") +
+            actionsHtml;
           listEl.appendChild(card);
+          if (!isUndo) {
+            var btn = card.querySelector(".btn-undo");
+            if (btn) btn.addEventListener("click", function () { onUndo(r.id, card); });
+          }
         });
+      }
+
+      var undoPendingId = null;
+      var undoPendingCard = null;
+      function onUndo(recordId, cardEl) {
+        if (!recordId) return;
+        undoPendingId = recordId;
+        undoPendingCard = cardEl;
+        var wrap = document.getElementById("undo-confirm-wrap");
+        if (wrap) wrap.style.display = "flex";
+      }
+      function doUndoRequest() {
+        var recordId = undoPendingId;
+        var cardEl = undoPendingCard;
+        undoPendingId = null;
+        undoPendingCard = null;
+        var wrap = document.getElementById("undo-confirm-wrap");
+        if (wrap) wrap.style.display = "none";
+        if (!recordId) return;
+        var btn = cardEl ? cardEl.querySelector(".btn-undo") : null;
+        if (btn) btn.disabled = true;
+        fetch("/api/usage/" + recordId + "/undo", {
+          method: "POST",
+          headers: authHeaders(),
+        })
+          .then(function (res) {
+            if (res.status === 401) {
+              alert("请先登录");
+              if (btn) btn.disabled = false;
+              return;
+            }
+            if (res.status === 403) {
+              alert("只能撤销自己的登记记录");
+              if (btn) btn.disabled = false;
+              return;
+            }
+            if (!res.ok) {
+              res.json().then(function (body) {
+                var msg = (body && body.detail) ? (typeof body.detail === "string" ? body.detail : "撤销失败") : "撤销失败，请稍后重试";
+                alert(msg);
+              }).catch(function () { alert("撤销失败，请稍后重试"); });
+              if (btn) btn.disabled = false;
+              return;
+            }
+            recordsLoaded = recordsLoaded.filter(function (r) { return r.id !== recordId; });
+            if (totalCount != null) totalCount = Math.max(0, totalCount - 1);
+            countHint.textContent = "已撤销";
+            countHint.style.color = "var(--primary-dark)";
+            if (recordsLoaded.length === 0) {
+              emptyEl.style.display = "block";
+              listEl.style.display = "none";
+              loadMoreWrap.style.display = "none";
+              countHint.textContent = "已撤销";
+              listEl.innerHTML = "";
+            } else {
+              var hasMore = totalCount != null ? recordsLoaded.length < totalCount : recordsLoaded.length >= pageSize;
+              loadMoreWrap.style.display = hasMore ? "block" : "none";
+              if (cardEl && cardEl.parentNode) cardEl.remove();
+            }
+            setTimeout(function () {
+              countHint.style.color = "";
+              countHint.textContent = recordsLoaded.length > 0
+                ? (totalCount != null ? "共 " + totalCount + " 条，已加载 " + recordsLoaded.length + " 条" : "已加载 " + recordsLoaded.length + " 条")
+                : "";
+            }, 2000);
+          })
+          .catch(function () {
+            alert("网络异常，请稍后重试");
+            if (btn) btn.disabled = false;
+          });
       }
 
       function showList(records, total) {
@@ -325,20 +473,24 @@
         loadMoreWrap.style.display = hasMore ? "block" : "none";
       }
 
-      function showError(msg) {
+      function showError(msg, showLoginLink) {
         loadingEl.style.display = "none";
         listEl.style.display = "none";
         loadMoreWrap.style.display = "none";
         emptyEl.style.display = "none";
         errorEl.style.display = "block";
-        errorEl.textContent = msg;
+        if (showLoginLink) {
+          errorEl.innerHTML = "<p>" + escapeHtml(msg) + "</p><p><a href=\"/h5/scan\" class=\"error-login-link\">前往登记页登录</a></p>";
+        } else {
+          errorEl.textContent = msg;
+        }
         countHint.textContent = "";
       }
 
       function loadRecords(append) {
         if (!append) showLoading();
         var offset = append ? recordsLoaded.length : 0;
-        var listUrl = "/api/usage?limit=" + pageSize + "&offset=" + offset;
+        var listUrl = "/api/usage?limit=" + pageSize + "&offset=" + offset + "&include_deleted=true";
         if (append) {
           btnLoadMore.disabled = true;
           btnLoadMore.textContent = "加载中...";
@@ -346,7 +498,8 @@
         fetch(listUrl, { headers: authHeaders() })
           .then(function (res) {
             if (res.status === 401) {
-              showError("请先登录后查看记录");
+              try { localStorage.removeItem("device_scan_token"); } catch (e) {}
+              showError("请先登录后查看记录", true);
               return Promise.reject(new Error("未登录"));
             }
             if (!res.ok) throw new Error("加载失败");
@@ -360,7 +513,7 @@
             if (!data || !Array.isArray(data)) return;
             var nextList = append ? recordsLoaded.concat(data) : data;
             if (!append) {
-              fetch("/api/usage/count", { headers: authHeaders() })
+              fetch("/api/usage/count?include_deleted=true", { headers: authHeaders() })
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .catch(function () { return null; })
                 .then(function (o) {
@@ -388,6 +541,14 @@
 
       btnRefresh.addEventListener("click", function () { loadRecords(false); });
       if (btnLoadMore) btnLoadMore.addEventListener("click", loadMore);
+      var undoConfirmOk = document.getElementById("undo-confirm-ok");
+      var undoConfirmCancel = document.getElementById("undo-confirm-cancel");
+      if (undoConfirmOk) undoConfirmOk.addEventListener("click", doUndoRequest);
+      if (undoConfirmCancel) undoConfirmCancel.addEventListener("click", function () {
+        document.getElementById("undo-confirm-wrap").style.display = "none";
+        undoPendingId = null;
+        undoPendingCard = null;
+      });
       loadRecords(false);
     </script>
   </body>
