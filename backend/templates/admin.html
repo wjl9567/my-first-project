@@ -959,10 +959,27 @@
           return t ? { "Authorization": "Bearer " + t } : {};
         } catch (e) { return {}; }
       }
+      var _auth401Handled = false;
+      function handle401Unauth(url) {
+        try { localStorage.removeItem("device_scan_token"); } catch (e) {}
+        if (url && typeof url === "string" && url.indexOf("/api/auth/me") !== -1) {
+          return;
+        }
+        if (_auth401Handled) return;
+        _auth401Handled = true;
+        var wrap = document.getElementById("login-wrap");
+        var layout = document.getElementById("admin-layout");
+        if (wrap && layout) {
+          layout.style.display = "none";
+          wrap.style.display = "flex";
+          if (typeof bindLoginForm === "function") bindLoginForm();
+        } else {
+          setTimeout(function () { location.reload(); }, 50);
+        }
+      }
       function ensureAuth(res) {
         if (res && res.status === 401) {
-          try { localStorage.removeItem("device_scan_token"); } catch (e) {}
-          location.reload();
+          handle401Unauth("");
           return false;
         }
         return true;
@@ -971,8 +988,7 @@
       window.fetch = function (url, opts) {
         return _origFetch.apply(this, arguments).then(function (res) {
           if (url && typeof url === "string" && url.indexOf("/api/") !== -1 && res.status === 401) {
-            try { localStorage.removeItem("device_scan_token"); } catch (e) {}
-            location.reload();
+            handle401Unauth(url);
           }
           return res;
         });
@@ -2317,6 +2333,7 @@
           bindLoginForm();
           return;
         }
+        /* 仅在校验通过后发起后续请求，保证请求头均携带有效 token，减少 401 */
         loadDashboardStats();
         loadDevices();
         loadUsage();
