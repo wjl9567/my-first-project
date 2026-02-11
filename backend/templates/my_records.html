@@ -426,6 +426,13 @@
         var token = new URLSearchParams(hash).get("token") || q.get("token");
         if (token) {
           try { localStorage.setItem("device_scan_token", token); } catch (e) {}
+        } else {
+          try {
+            if (!localStorage.getItem("device_scan_token")) {
+              location.replace("/api/auth/wecom/login?next_path=/h5/my-records");
+              return;
+            }
+          } catch (e) {}
         }
       })();
       function authHeaders() {
@@ -665,7 +672,7 @@
         emptyEl.style.display = "none";
         errorEl.style.display = "block";
         if (showLoginLink) {
-          errorEl.innerHTML = "<p>" + escapeHtml(msg) + "</p><p><a href=\"/h5/scan\" class=\"error-login-link\">前往登记页登录</a></p>";
+          errorEl.innerHTML = "<p>" + escapeHtml(msg) + "</p><p><a href=\"/api/auth/wecom/login?next_path=/h5/my-records\" class=\"error-login-link\">企业微信登录</a></p>";
         } else {
           errorEl.textContent = msg;
         }
@@ -706,7 +713,7 @@
           .then(function (res) {
             if (res.status === 401) {
               try { localStorage.removeItem("device_scan_token"); } catch (e) {}
-              showError("请先登录后查看记录", true);
+              showError("登录已过期或未登录，请重新登录后查看记录", true);
               return Promise.reject(new Error("未登录"));
             }
             if (!res.ok) throw new Error("加载失败");
