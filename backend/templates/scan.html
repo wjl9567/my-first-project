@@ -568,6 +568,10 @@
 
       <div class="form-section" id="form-section" style="display:none;">
         <div class="field required">
+          <label>操作类型</label>
+          <select id="usage_type" aria-label="操作类型"></select>
+        </div>
+        <div class="field required">
           <label>登记日期</label>
           <input id="registration_date" type="date" />
         </div>
@@ -726,12 +730,51 @@
       const powerOffHourEl = document.getElementById("power_off_hour");
       const powerOffMinuteEl = document.getElementById("power_off_minute");
       const terminalDisinfectionEl = document.getElementById("terminal_disinfection");
+      const usageTypeEl = document.getElementById("usage_type");
 
       var DEVICE_CODE_ERROR_MSG = "该设备编码不存在或已被删除，请核对后重新输入/扫描";
 
       function showDeviceCodeError(msg) {
         deviceCodeErrorEl.textContent = msg || "";
         deviceCodeErrorEl.style.display = msg ? "block" : "none";
+      }
+
+      function _setUsageTypeOptions(list) {
+        if (!usageTypeEl) return;
+        var items = (Array.isArray(list) && list.length) ? list : [
+          { code: "1", label: "常规使用" },
+          { code: "2", label: "借用" },
+          { code: "3", label: "维修/故障" },
+          { code: "4", label: "校准/质控" },
+          { code: "5", label: "其他" },
+        ];
+        usageTypeEl.innerHTML = "";
+        var ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = "请选择操作类型";
+        usageTypeEl.appendChild(ph);
+        items.forEach(function (it) {
+          if (!it) return;
+          var code = (it.code === 0 || it.code) ? String(it.code) : "";
+          var label = (it.label === 0 || it.label) ? String(it.label) : code;
+          if (!code) return;
+          var opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = label;
+          usageTypeEl.appendChild(opt);
+        });
+        // 只有一个可选项时自动选中，减少无意义选择
+        if (usageTypeEl.options.length === 2) usageTypeEl.value = usageTypeEl.options[1].value;
+      }
+
+      function loadUsageTypeOptions() {
+        if (!usageTypeEl) return;
+        // 先渲染占位，避免空白
+        usageTypeEl.innerHTML = "<option value=\"\">请选择操作类型</option>";
+        fetch("/api/dict?dict_type=usage_type")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) { _setUsageTypeOptions(data); })
+          .catch(function () { _setUsageTypeOptions(null); });
       }
 
       function fillTimeSelects() {
@@ -771,6 +814,7 @@
         if (powerOffMinuteEl) powerOffMinuteEl.value = "00";
       }
       function clearFormDataExceptDeviceCode() {
+        if (usageTypeEl) usageTypeEl.value = "";
         if (registrationDateEl) registrationDateEl.value = "";
         if (bedNumberEl) bedNumberEl.value = "";
         if (idNumberEl) idNumberEl.value = "";
@@ -990,6 +1034,7 @@
       }
 
       fillTimeSelects();
+      loadUsageTypeOptions();
       setDefaultDateAndTime();
 
       deviceCodeInput.addEventListener("input", updateQueryButtonState);
@@ -1014,6 +1059,18 @@
       async function submitUsage() {
         if (!device) return;
         if (submitBtn.disabled) return;
+        var usageTypeRaw = (usageTypeEl && usageTypeEl.value) ? usageTypeEl.value.trim() : "";
+        if (!usageTypeRaw) {
+          statusEl.className = "status error";
+          statusEl.textContent = "请选择操作类型";
+          return;
+        }
+        if (!/^\d+$/.test(usageTypeRaw)) {
+          statusEl.className = "status error";
+          statusEl.textContent = "操作类型不合法，请重新选择";
+          return;
+        }
+        var usageTypeInt = parseInt(usageTypeRaw, 10);
         var bedNumber = (bedNumberEl && bedNumberEl.value) ? bedNumberEl.value.trim() : null;
         var idNumber = (idNumberEl && idNumberEl.value) ? idNumberEl.value.trim() : null;
         var regDate = registrationDateEl && registrationDateEl.value ? registrationDateEl.value : "";
@@ -1029,7 +1086,7 @@
         statusEl.className = "status";
         var payload = {
           device_code: device.device_code,
-          usage_type: 3,
+          usage_type: usageTypeInt,
           registration_date: regDate || null,
           bed_number: bedNumber || null,
           id_number: idNumber || null,

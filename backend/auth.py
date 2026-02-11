@@ -152,7 +152,15 @@ def get_current_user_optional(
         return None
     user_id = int(payload["sub"])
     user = db.get(models.User, user_id)
-    return user if user else None
+    if not user:
+        return None
+    # 停用账号：明确提示（而不是当成未登录）
+    if getattr(user, "is_active", True) is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已停用，请联系管理员",
+        )
+    return user
 
 
 def get_current_user(

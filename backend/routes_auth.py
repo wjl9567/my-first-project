@@ -78,6 +78,8 @@ def wecom_callback(
         db.commit()
         db.refresh(user)
     else:
+        if getattr(user, "is_active", True) is False:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已停用，请联系管理员")
         log_audit(db, user.id, "auth.login", "user", user.id, "wecom")
     token = create_access_token(user)
     # 开放重定向防护：仅允许以单斜杠开头的相对路径，且不含 //
@@ -135,6 +137,8 @@ def login(
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
     else:
+        if getattr(user, "is_active", True) is False:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已停用，请联系管理员")
         if not user.password_hash:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="该账号未设置密码，请使用企业微信登录")
         if not verify_password(password, user.password_hash):

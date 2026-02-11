@@ -29,6 +29,15 @@ _DOCS_DESCRIPTION = (
 def create_app() -> FastAPI:
     # 创建所有表（MVP 阶段可直接使用，后续可改为 Alembic 迁移）
     Base.metadata.create_all(bind=engine)
+    # 轻量自迁移：为 users 增加 is_active（停用/启用）
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_active ON users (is_active)"))
+            conn.commit()
+    except Exception:
+        _logger.exception("users.is_active 自动迁移失败（请检查数据库权限或手工执行迁移）")
     # 字典表为空时写入初始数据
     from .database import SessionLocal
     try:

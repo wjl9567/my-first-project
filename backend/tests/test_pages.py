@@ -17,6 +17,9 @@ def test_h5_scan_form_optimizations(client: TestClient):
     r = client.get("/h5/scan")
     assert r.status_code == 200
     text = r.content.decode("utf-8", errors="replace")
+    # 操作类型：必选下拉，来源于使用类型字典（页面至少应包含字段与文案）
+    assert "操作类型" in text
+    assert "usage_type" in text
     # 床号、ID 号为选填：placeholder 或文案含「选填」
     assert "选填" in text
     assert "bed_number" in text or "床号" in text

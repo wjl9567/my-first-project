@@ -32,6 +32,7 @@ class User(Base):
     real_name: Mapped[str] = mapped_column(String(64))
     role: Mapped[str] = mapped_column(String(32), default="user")  # user / device_admin / sys_admin
     dept: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)  # 停用/启用
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

@@ -39,6 +39,7 @@ class UserListRead(BaseModel):
     real_name: str
     role: str
     dept: Optional[str] = None
+    is_active: bool = True
     created_at: datetime
 
     @field_serializer("created_at")
@@ -48,6 +49,28 @@ class UserListRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserCreate(BaseModel):
+    """管理员新增本地用户（用户名+密码登录）。"""
+
+    username: str = Field(..., min_length=1, max_length=64, description="登录用户名，唯一")
+    password: str = Field(..., min_length=6, max_length=128, description="登录密码，至少 6 位")
+    real_name: str = Field(..., min_length=1, max_length=64, description="姓名")
+    role: str = Field("user", description="角色：user / device_admin / sys_admin")
+    dept: Optional[str] = Field(None, max_length=128, description="科室，选填")
+
+
+class UserPasswordUpdate(BaseModel):
+    """管理员重置/修改本地账号密码（不适用于仅企微登录且无 username 的用户）。"""
+
+    password: str = Field(..., min_length=6, max_length=128, description="新密码（至少 6 位）")
+
+
+class UserActiveUpdate(BaseModel):
+    """管理员停用/启用用户账号。"""
+
+    is_active: bool = Field(..., description="true 启用 / false 停用")
 
 
 class DeviceBase(BaseModel):

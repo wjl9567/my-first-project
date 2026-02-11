@@ -13,6 +13,7 @@
         --primary-tint: #ccfbf1;
         --primary-bg: #f0fdfa;
         --surface: #ffffff;
+        --card-bg: #ffffff;
         --bg-page: #f8fafc;
         --border: #e2e8f0;
         --text: #334155;
@@ -364,6 +365,33 @@
       }
       .device-qr-modal-box img { max-width: 280px; max-height: 280px; display: block; }
       .device-qr-modal-box button { align-self: center; }
+
+      /* 用户管理：修改密码弹窗（与二维码弹窗同风格） */
+      .user-pw-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .user-pw-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+      }
+      .user-pw-modal-box {
+        position: relative;
+        z-index: 1;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        width: min(520px, calc(100vw - 32px));
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+      .user-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
       /* 设备管理表格：独立横向滚动、底部固定滚动条（与使用记录查询一致） */
       .device-table-scroll-outer { position: relative; margin: 0 -4px 12px; }
@@ -766,10 +794,13 @@
         <div id="panel-users" class="admin-panel">
           <h2>用户管理</h2>
           <div class="card">
-            <p class="mb" style="color:var(--text-muted);">系统用户列表（企业微信登录或管理员账号），仅查看。</p>
+            <p class="mb" style="color:var(--text-muted);">系统用户列表（企业微信登录或管理员账号）。支持新增本地用户、修改密码、停用/启用；仅系统管理员可修改密码与创建管理员角色。</p>
+            <div class="mb">
+              <button type="button" id="btn-user-add" class="primary">新增用户</button>
+            </div>
             <table id="table-users" class="resizable-cols">
               <thead>
-                <tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>科室</th><th>创建时间</th></tr>
+                <tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>科室</th><th>创建时间</th><th>操作</th></tr>
               </thead>
               <tbody id="user-list"></tbody>
             </table>
@@ -777,6 +808,62 @@
               <span id="user-page-info">共 0 条</span>
               <button type="button" id="user-prev" class="secondary">上一页</button>
               <button type="button" id="user-next" class="secondary">下一页</button>
+            </div>
+            <div id="user-pw-modal" class="user-pw-modal" role="dialog" aria-modal="true" aria-label="修改密码" style="display:none;">
+              <div class="user-pw-modal-backdrop"></div>
+              <div class="user-pw-modal-box">
+                <h3 style="margin:0;">修改密码</h3>
+                <p class="mb" id="user-pw-sub" style="margin:0;color:var(--text-muted);"></p>
+                <div class="form-row">
+                  <label>新密码</label>
+                  <input type="password" id="user-pw-new" placeholder="至少 6 位" autocomplete="new-password" />
+                </div>
+                <div class="form-row">
+                  <label>确认密码</label>
+                  <input type="password" id="user-pw-confirm" placeholder="再次输入新密码" autocomplete="new-password" />
+                </div>
+                <div class="msg" id="user-pw-msg"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                  <button type="button" id="user-pw-cancel" class="secondary">取消</button>
+                  <button type="button" id="user-pw-save">保存</button>
+                </div>
+              </div>
+            </div>
+            <div id="user-add-modal" class="user-pw-modal" role="dialog" aria-modal="true" aria-label="新增用户" style="display:none;">
+              <div class="user-pw-modal-backdrop"></div>
+              <div class="user-pw-modal-box">
+                <h3 style="margin:0;">新增用户</h3>
+                <p class="mb" style="margin:0;color:var(--text-muted);font-size:13px;">创建本地账号，可使用用户名+密码登录后台。</p>
+                <div class="form-row">
+                  <label>用户名 <span style="color:#dc2626;">*</span></label>
+                  <input type="text" id="user-add-username" placeholder="登录用，唯一" maxlength="64" autocomplete="off" />
+                </div>
+                <div class="form-row">
+                  <label>密码 <span style="color:#dc2626;">*</span></label>
+                  <input type="password" id="user-add-password" placeholder="至少 6 位" autocomplete="new-password" />
+                </div>
+                <div class="form-row">
+                  <label>姓名 <span style="color:#dc2626;">*</span></label>
+                  <input type="text" id="user-add-realname" placeholder="显示姓名" maxlength="64" />
+                </div>
+                <div class="form-row">
+                  <label>角色</label>
+                  <select id="user-add-role" aria-label="角色">
+                    <option value="user">普通用户</option>
+                    <option value="device_admin">设备管理员</option>
+                    <option value="sys_admin">系统管理员</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>科室</label>
+                  <input type="text" id="user-add-dept" placeholder="选填" maxlength="128" />
+                </div>
+                <div class="msg" id="user-add-msg"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                  <button type="button" id="user-add-cancel" class="secondary">取消</button>
+                  <button type="button" id="user-add-submit">确定</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1085,6 +1172,8 @@
       const loginWrap = document.getElementById("login-wrap");
       const adminLayout = document.getElementById("admin-layout");
       const logoutBtn = document.getElementById("btn-logout");
+      var currentUserRole = null;
+      var currentUserId = null;
 
       async function checkAdmin() {
         const res = await fetch("/api/auth/me", { headers: authHeaders() });
@@ -1093,6 +1182,8 @@
           return false;
         }
         const me = await res.json();
+        currentUserRole = me && me.role ? me.role : null;
+        currentUserId = me && me.id != null ? me.id : null;
         const userNameEl = document.getElementById("user-name");
         if (userNameEl) {
           userNameEl.textContent = me.real_name || me.wx_userid || me.username || "管理员";
@@ -1555,9 +1646,182 @@
       var userPage = 0;
       var userPageSize = 100;
       var userTotal = 0;
+
+      var userPwModal = document.getElementById("user-pw-modal");
+      var userPwBackdrop = document.querySelector("#user-pw-modal .user-pw-modal-backdrop");
+      var userPwSub = document.getElementById("user-pw-sub");
+      var userPwNew = document.getElementById("user-pw-new");
+      var userPwConfirm = document.getElementById("user-pw-confirm");
+      var userPwMsg = document.getElementById("user-pw-msg");
+      var userPwCancel = document.getElementById("user-pw-cancel");
+      var userPwSave = document.getElementById("user-pw-save");
+      var userPwTarget = null; // {id, username, real_name}
+      var userAddModal = document.getElementById("user-add-modal");
+      var userAddBackdrop = document.querySelector("#user-add-modal .user-pw-modal-backdrop");
+      var userAddUsername = document.getElementById("user-add-username");
+      var userAddPassword = document.getElementById("user-add-password");
+      var userAddRealname = document.getElementById("user-add-realname");
+      var userAddRole = document.getElementById("user-add-role");
+      var userAddDept = document.getElementById("user-add-dept");
+      var userAddMsg = document.getElementById("user-add-msg");
+      var userAddCancel = document.getElementById("user-add-cancel");
+      var userAddSubmit = document.getElementById("user-add-submit");
+
+      function openUserAddModal() {
+        if (!userAddModal) return;
+        if (userAddUsername) userAddUsername.value = "";
+        if (userAddPassword) userAddPassword.value = "";
+        if (userAddRealname) userAddRealname.value = "";
+        if (userAddDept) userAddDept.value = "";
+        if (userAddMsg) { userAddMsg.textContent = ""; userAddMsg.className = "msg"; }
+        if (userAddRole) {
+          userAddRole.innerHTML = "";
+          var opts = [{ v: "user", l: "普通用户" }];
+          if (currentUserRole === "sys_admin") {
+            opts.push({ v: "device_admin", l: "设备管理员" }, { v: "sys_admin", l: "系统管理员" });
+          }
+          opts.forEach(function (o) {
+            var opt = document.createElement("option");
+            opt.value = o.v;
+            opt.textContent = o.l;
+            userAddRole.appendChild(opt);
+          });
+        }
+        if (userAddSubmit) { userAddSubmit.disabled = false; userAddSubmit.textContent = "确定"; }
+        userAddModal.style.display = "flex";
+        try { if (userAddUsername) userAddUsername.focus(); } catch (e) {}
+      }
+
+      function closeUserAddModal() {
+        if (!userAddModal) return;
+        userAddModal.style.display = "none";
+      }
+
+      async function submitUserAdd() {
+        if (!userAddUsername || !userAddPassword || !userAddRealname || !userAddRole || !userAddMsg || !userAddSubmit) return;
+        var username = (userAddUsername.value || "").trim();
+        var password = (userAddPassword.value || "");
+        var realName = (userAddRealname.value || "").trim();
+        var role = (userAddRole.value || "user");
+        var dept = (userAddDept && userAddDept.value) ? userAddDept.value.trim() : "";
+        if (!username) { userAddMsg.textContent = "请输入用户名"; userAddMsg.className = "msg err"; return; }
+        if (!password || password.length < 6) { userAddMsg.textContent = "密码至少 6 位"; userAddMsg.className = "msg err"; return; }
+        if (!realName) { userAddMsg.textContent = "请输入姓名"; userAddMsg.className = "msg err"; return; }
+        userAddSubmit.disabled = true;
+        userAddSubmit.textContent = "提交中...";
+        userAddMsg.textContent = "提交中...";
+        userAddMsg.className = "msg";
+        try {
+          var res = await fetch("/api/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ username: username, password: password, real_name: realName, role: role, dept: dept || null })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            userAddMsg.textContent = data.detail || ("创建失败（" + res.status + "）");
+            userAddMsg.className = "msg err";
+            userAddSubmit.disabled = false;
+            userAddSubmit.textContent = "确定";
+            return;
+          }
+          userAddMsg.textContent = "已创建";
+          userAddMsg.className = "msg ok";
+          userAddSubmit.textContent = "已创建";
+          loadUsers();
+          if (typeof loadDashboardStats === "function") loadDashboardStats();
+          setTimeout(closeUserAddModal, 500);
+        } catch (e) {
+          userAddMsg.textContent = "网络异常，请稍后重试";
+          userAddMsg.className = "msg err";
+          userAddSubmit.disabled = false;
+          userAddSubmit.textContent = "确定";
+        }
+      }
+
+      async function setUserActive(u, active) {
+        if (!u || u.id == null) return;
+        var title = active ? "启用账号" : "停用账号";
+        var who = (u.real_name || u.username || u.wx_userid || ("ID " + u.id));
+        if (!confirm("确认" + title + "：" + who + "？")) return;
+        try {
+          var res = await fetch("/api/users/" + encodeURIComponent(u.id) + "/active", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ is_active: !!active })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            alert(data.detail || (title + "失败（" + res.status + "）"));
+            return;
+          }
+          loadUsers();
+        } catch (e) {
+          alert("网络异常，请稍后重试");
+        }
+      }
+
+      function openUserPwModal(u) {
+        if (!userPwModal) return;
+        userPwTarget = u ? { id: u.id, username: u.username || "", real_name: u.real_name || "" } : null;
+        if (userPwSub) {
+          var who = (u && (u.real_name || u.username)) ? ((u.real_name || u.username) + (u.username ? ("（" + u.username + "）") : "")) : "";
+          userPwSub.textContent = who ? ("为用户 " + who + " 设置新密码") : "设置新密码";
+        }
+        if (userPwNew) userPwNew.value = "";
+        if (userPwConfirm) userPwConfirm.value = "";
+        if (userPwMsg) { userPwMsg.textContent = ""; userPwMsg.className = "msg"; }
+        if (userPwSave) { userPwSave.disabled = false; userPwSave.textContent = "保存"; }
+        userPwModal.style.display = "flex";
+        try { if (userPwNew) userPwNew.focus(); } catch (e) {}
+      }
+
+      function closeUserPwModal() {
+        if (!userPwModal) return;
+        userPwModal.style.display = "none";
+        userPwTarget = null;
+      }
+
+      async function submitUserPw() {
+        if (!userPwTarget) return;
+        if (!userPwNew || !userPwConfirm || !userPwMsg || !userPwSave) return;
+        var p1 = (userPwNew.value || "");
+        var p2 = (userPwConfirm.value || "");
+        if (!p1 || p1.length < 6) { userPwMsg.textContent = "新密码至少 6 位"; userPwMsg.className = "msg err"; return; }
+        if (p1 !== p2) { userPwMsg.textContent = "两次输入的密码不一致"; userPwMsg.className = "msg err"; return; }
+        userPwSave.disabled = true;
+        userPwSave.textContent = "保存中...";
+        userPwMsg.textContent = "保存中...";
+        userPwMsg.className = "msg";
+        try {
+          var res = await fetch("/api/users/" + encodeURIComponent(userPwTarget.id) + "/password", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ password: p1 })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            userPwMsg.textContent = data.detail || ("保存失败（" + res.status + "）");
+            userPwMsg.className = "msg err";
+            userPwSave.disabled = false;
+            userPwSave.textContent = "保存";
+            return;
+          }
+          userPwMsg.textContent = "已保存";
+          userPwMsg.className = "msg ok";
+          userPwSave.textContent = "已保存";
+          setTimeout(closeUserPwModal, 400);
+        } catch (e) {
+          userPwMsg.textContent = "网络异常，请稍后重试";
+          userPwMsg.className = "msg err";
+          userPwSave.disabled = false;
+          userPwSave.textContent = "保存";
+        }
+      }
+
       async function loadUsers() {
         var tbody = document.getElementById("user-list");
-        if (tbody) tbody.innerHTML = "<tr><td colspan=\"6\" class=\"loading-cell\">加载中...</td></tr>";
+        if (tbody) tbody.innerHTML = "<tr><td colspan=\"7\" class=\"loading-cell\">加载中...</td></tr>";
         var offset = userPage * userPageSize;
         var listUrl = "/api/users?limit=" + userPageSize + "&offset=" + offset;
         try {
@@ -1570,10 +1834,57 @@
           if (!tbody) return;
           tbody.innerHTML = "";
           var roleLabels = { user: "普通用户", device_admin: "设备管理员", sys_admin: "系统管理员" };
+          function appendTd(tr, text) { var td = document.createElement("td"); td.textContent = text; tr.appendChild(td); return td; }
           (list || []).forEach(function (u) {
             var tr = document.createElement("tr");
             var createdAt = u.created_at ? new Date(u.created_at).toLocaleString("zh-CN") : "";
-            tr.innerHTML = "<td>" + (u.id || "") + "</td><td>" + escapeHtml(u.username || "—") + "</td><td>" + escapeHtml(u.real_name || "—") + "</td><td>" + escapeHtml(roleLabels[u.role] || u.role) + "</td><td>" + escapeHtml(u.dept || "—") + "</td><td>" + escapeHtml(createdAt) + "</td>";
+            appendTd(tr, (u && u.id != null) ? String(u.id) : "");
+            appendTd(tr, (u && u.username) ? String(u.username) : "—");
+            appendTd(tr, (u && u.real_name) ? String(u.real_name) : "—");
+            appendTd(tr, roleLabels[u.role] || (u && u.role ? String(u.role) : "—"));
+            appendTd(tr, (u && u.dept) ? String(u.dept) : "—");
+            appendTd(tr, createdAt);
+            var actionTd = document.createElement("td");
+            var wrap = document.createElement("div");
+            wrap.className = "user-row-actions";
+            var role = (u && u.role) ? String(u.role) : "user";
+            var isAdminTarget = (role === "device_admin" || role === "sys_admin");
+            var isSelf = u && (currentUserId != null && u.id === currentUserId);
+
+            // 修改密码：仅系统管理员、且目标有本地用户名时可操作
+            if (currentUserRole === "sys_admin" && u && u.username) {
+              var btnPw = document.createElement("button");
+              btnPw.type = "button";
+              btnPw.className = "secondary";
+              btnPw.textContent = "修改密码";
+              btnPw.onclick = function () { openUserPwModal(u); };
+              wrap.appendChild(btnPw);
+            }
+
+            // 停用/启用：设备管理员与系统管理员均可操作普通用户；管理员账号不可停用；不可操作自己
+            if (currentUserRole !== "device_admin" && currentUserRole !== "sys_admin") {
+              if (!wrap.childNodes.length) wrap.appendChild(document.createTextNode("—"));
+            } else if (u && u.id == null) {
+              if (!wrap.childNodes.length) wrap.appendChild(document.createTextNode("—"));
+            } else if (isSelf) {
+              if (!wrap.childNodes.length) wrap.appendChild(document.createTextNode("—"));
+            } else if (isAdminTarget) {
+              var adminTxt = document.createElement("span");
+              adminTxt.textContent = "管理员不可停用";
+              adminTxt.style.color = "var(--text-muted)";
+              wrap.appendChild(adminTxt);
+            } else {
+              const active = (u && u.is_active !== undefined) ? !!u.is_active : true;
+              var btnActive = document.createElement("button");
+              btnActive.type = "button";
+              btnActive.className = "secondary";
+              btnActive.textContent = active ? "停用" : "启用";
+              btnActive.onclick = function () { setUserActive(u, !active); };
+              wrap.appendChild(btnActive);
+            }
+            if (!wrap.childNodes.length) actionTd.textContent = "—";
+            else actionTd.appendChild(wrap);
+            tr.appendChild(actionTd);
             tbody.appendChild(tr);
           });
           var start = offset + 1;
@@ -1590,6 +1901,20 @@
       var userNextEl = document.getElementById("user-next");
       if (userPrevEl) userPrevEl.onclick = function () { if (userPage > 0) { userPage--; loadUsers(); } };
       if (userNextEl) userNextEl.onclick = function () { if ((userPage + 1) * userPageSize < userTotal) { userPage++; loadUsers(); } };
+      if (userPwCancel) userPwCancel.onclick = closeUserPwModal;
+      if (userPwBackdrop) userPwBackdrop.onclick = closeUserPwModal;
+      if (userPwSave) userPwSave.onclick = submitUserPw;
+      var btnUserAdd = document.getElementById("btn-user-add");
+      if (btnUserAdd) btnUserAdd.onclick = openUserAddModal;
+      if (userAddCancel) userAddCancel.onclick = closeUserAddModal;
+      if (userAddBackdrop) userAddBackdrop.onclick = closeUserAddModal;
+      if (userAddSubmit) userAddSubmit.onclick = submitUserAdd;
+      function userPwKeyHandler(e) {
+        if (e.key === "Escape") { e.preventDefault(); closeUserPwModal(); }
+        if (e.key === "Enter") { e.preventDefault(); submitUserPw(); }
+      }
+      if (userPwNew) userPwNew.addEventListener("keydown", userPwKeyHandler);
+      if (userPwConfirm) userPwConfirm.addEventListener("keydown", userPwKeyHandler);
 
       var usagePage = 0;
       var usagePageSize = 20;
@@ -2296,29 +2621,37 @@
       function bindLoginForm() {
         const btn = document.getElementById("btn-login");
         const msg = document.getElementById("login-msg");
+        const usernameEl = document.getElementById("login-username");
+        const passwordEl = document.getElementById("login-password");
         if (!btn) return;
-        btn.onclick = async function () {
-          const username = document.getElementById("login-username").value.trim();
-          const password = document.getElementById("login-password").value;
+        function doLogin() {
+          const username = (usernameEl && usernameEl.value) ? usernameEl.value.trim() : "";
+          const password = (passwordEl && passwordEl.value) || "";
           if (!username) { msg.textContent = "请输入用户名"; msg.className = "msg err"; return; }
           msg.textContent = "登录中...";
           msg.className = "msg";
-          const res = await fetch("/api/auth/login", {
+          fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: username, password: password || "" })
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            msg.textContent = data.detail || "登录失败";
-            msg.className = "msg err";
-            return;
-          }
-          try { localStorage.setItem("device_scan_token", data.access_token); } catch (e) {}
-          msg.textContent = "登录成功，正在加载...";
-          msg.className = "msg ok";
-          location.reload();
-        };
+            body: JSON.stringify({ username: username, password: password })
+          }).then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }).catch(function () { return { res: res, data: {} }; }); })
+            .then(function (_) {
+              var res = _.res, data = _.data;
+              if (!res.ok) {
+                msg.textContent = data.detail || "登录失败";
+                msg.className = "msg err";
+                return;
+              }
+              try { localStorage.setItem("device_scan_token", data.access_token); } catch (e) {}
+              msg.textContent = "登录成功，正在加载...";
+              msg.className = "msg ok";
+              location.reload();
+            });
+        }
+        btn.onclick = doLogin;
+        function onEnter(e) { if (e.key === "Enter") { e.preventDefault(); doLogin(); } }
+        if (usernameEl) usernameEl.addEventListener("keydown", onEnter);
+        if (passwordEl) passwordEl.addEventListener("keydown", onEnter);
       }
 
       if (logoutBtn) {
