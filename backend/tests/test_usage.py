@@ -1,5 +1,5 @@
 """使用/维护登记：创建、列表、总数、撤销、导出；无效设备、重复提交、权限。"""
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -46,8 +46,8 @@ def test_usage_create_success(client: TestClient, admin_headers: dict, created_d
             "id_number": "ID001",
             "patient_name": "测试",
             "registration_date": date.today().isoformat(),
-            "start_time": datetime.utcnow().isoformat(),
-            "end_time": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+            "start_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_time": (datetime.now(timezone(timedelta(hours=8))) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
             "equipment_condition": "normal",
             "daily_maintenance": "clean",
         },
@@ -70,8 +70,8 @@ def test_usage_create_without_bed_id_optional(client: TestClient, admin_headers:
             "device_code": created_device_code,
             "usage_type": 3,
             "registration_date": date.today().isoformat(),
-            "start_time": datetime.utcnow().isoformat(),
-            "end_time": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+            "start_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_time": (datetime.now(timezone(timedelta(hours=8))) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
             "equipment_condition": "abnormal",
             "daily_maintenance": "disinfect",
         },

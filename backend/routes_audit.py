@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import models, schemas
 from .auth import require_role
 from .database import get_db
+from .time_utils import parse_naive_as_china_then_utc
 
 router = APIRouter(prefix="/api/audit-logs", tags=["audit"])
 
@@ -35,9 +36,13 @@ def list_audit_logs(
     if target_type:
         query = query.filter(models.AuditLog.target_type == target_type)
     if from_time:
-        query = query.filter(models.AuditLog.created_at >= from_time)
+        from_utc = parse_naive_as_china_then_utc(from_time)
+        if from_utc:
+            query = query.filter(models.AuditLog.created_at >= from_utc)
     if to_time:
-        query = query.filter(models.AuditLog.created_at <= to_time)
+        to_utc = parse_naive_as_china_then_utc(to_time)
+        if to_utc:
+            query = query.filter(models.AuditLog.created_at <= to_utc)
     rows = query.limit(limit).all()
     result = []
     for r in rows:

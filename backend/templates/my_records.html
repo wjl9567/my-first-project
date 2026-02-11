@@ -374,7 +374,6 @@
           <input type="date" id="filter-date-to" placeholder="请选择结束日期" title="请选择结束日期" aria-label="结束日期" />
         </div>
         <div class="filter-row">
-          <input type="text" id="filter-bed" placeholder="床号" />
           <input type="text" id="filter-device" placeholder="设备编号" />
           <button type="button" class="btn-apply" id="btn-apply">筛选</button>
         </div>
@@ -676,12 +675,10 @@
       function getFilterParams() {
         var dateFrom = document.getElementById("filter-date-from");
         var dateTo = document.getElementById("filter-date-to");
-        var bed = document.getElementById("filter-bed");
         var device = document.getElementById("filter-device");
         var parts = [];
         if (dateFrom && dateFrom.value) parts.push("registration_date_from=" + encodeURIComponent(dateFrom.value));
         if (dateTo && dateTo.value) parts.push("registration_date_to=" + encodeURIComponent(dateTo.value));
-        if (bed && bed.value.trim()) parts.push("bed_number=" + encodeURIComponent(bed.value.trim()));
         if (device && device.value.trim()) parts.push("device_code=" + encodeURIComponent(device.value.trim()));
         return parts.join("&");
       }

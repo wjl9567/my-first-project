@@ -243,6 +243,53 @@
         border-color: var(--primary);
         box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
       }
+      .time-field-inline .time-block {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        align-items: center;
+      }
+      .time-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        background: var(--bg-page, #f8fafc);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        min-height: var(--touch-min);
+      }
+      .time-group-label {
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        margin-right: 4px;
+        font-size: 15px;
+      }
+      .time-group select {
+        width: auto;
+        min-width: 56px;
+        padding: 8px 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #fff;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+      }
+      .time-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+      }
+      .time-sep {
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 16px;
+        line-height: 1;
+      }
+      .required-star { color: #dc2626; margin-right: 2px; }
       /* 设备状况/日常保养：单选题样式，选中项前显示打钩 √ */
       .radio-group {
         display: flex;
@@ -536,16 +583,24 @@
           <label>姓名</label>
           <input id="patient_name" type="text" placeholder="选填" maxlength="64" />
         </div>
-        <div class="field required">
-          <label>开机时间</label>
-          <input id="power_on_time" type="time" />
-        </div>
-        <div class="field required">
-          <label>关机时间</label>
-          <input id="power_off_time" type="time" />
+        <div class="field required time-field-inline">
+          <div class="time-block">
+            <div class="time-group">
+              <span class="time-group-label"><span class="required-star">*</span>开机时间</span>
+              <select id="power_on_hour" aria-label="开机时"></select>
+              <span class="time-sep">:</span>
+              <select id="power_on_minute" aria-label="开机分"></select>
+            </div>
+            <div class="time-group">
+              <span class="time-group-label"><span class="required-star">*</span>关机时间</span>
+              <select id="power_off_hour" aria-label="关机时"></select>
+              <span class="time-sep">:</span>
+              <select id="power_off_minute" aria-label="关机分"></select>
+            </div>
+          </div>
         </div>
         <div class="field">
-          <label>设备状况</label>
+          <label><span class="required-star">*</span>设备状况</label>
           <div class="radio-group">
             <label class="radio-label">
               <input type="radio" name="equipment_condition" value="normal" checked />
@@ -560,7 +615,7 @@
           </div>
         </div>
         <div class="field">
-          <label>日常保养</label>
+          <label><span class="required-star">*</span>日常保养</label>
           <div class="radio-group">
             <label class="radio-label">
               <input type="radio" name="daily_maintenance" value="clean" checked />
@@ -666,8 +721,10 @@
       const bedNumberEl = document.getElementById("bed_number");
       const idNumberEl = document.getElementById("id_number");
       const patientNameEl = document.getElementById("patient_name");
-      const powerOnTimeEl = document.getElementById("power_on_time");
-      const powerOffTimeEl = document.getElementById("power_off_time");
+      const powerOnHourEl = document.getElementById("power_on_hour");
+      const powerOnMinuteEl = document.getElementById("power_on_minute");
+      const powerOffHourEl = document.getElementById("power_off_hour");
+      const powerOffMinuteEl = document.getElementById("power_off_minute");
       const terminalDisinfectionEl = document.getElementById("terminal_disinfection");
 
       var DEVICE_CODE_ERROR_MSG = "该设备编码不存在或已被删除，请核对后重新输入/扫描";
@@ -677,20 +734,51 @@
         deviceCodeErrorEl.style.display = msg ? "block" : "none";
       }
 
+      function fillTimeSelects() {
+        var i;
+        function fillHour(sel) {
+          if (!sel) return;
+          sel.innerHTML = "";
+          for (i = 0; i < 24; i++) {
+            var opt = document.createElement("option");
+            opt.value = String(i).padStart(2, "0");
+            opt.textContent = opt.value;
+            sel.appendChild(opt);
+          }
+        }
+        function fillMinute(sel) {
+          if (!sel) return;
+          sel.innerHTML = "";
+          for (i = 0; i < 60; i++) {
+            var opt = document.createElement("option");
+            opt.value = String(i).padStart(2, "0");
+            opt.textContent = opt.value;
+            sel.appendChild(opt);
+          }
+        }
+        fillHour(powerOnHourEl);
+        fillMinute(powerOnMinuteEl);
+        fillHour(powerOffHourEl);
+        fillMinute(powerOffMinuteEl);
+      }
       function setDefaultDateAndTime() {
         var d = new Date();
         var dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
         if (registrationDateEl && !registrationDateEl.value) registrationDateEl.value = dateStr;
-        if (powerOnTimeEl && !powerOnTimeEl.value) powerOnTimeEl.value = "08:00";
-        if (powerOffTimeEl && !powerOffTimeEl.value) powerOffTimeEl.value = "18:00";
+        if (powerOnHourEl) powerOnHourEl.value = "08";
+        if (powerOnMinuteEl) powerOnMinuteEl.value = "00";
+        if (powerOffHourEl) powerOffHourEl.value = "18";
+        if (powerOffMinuteEl) powerOffMinuteEl.value = "00";
       }
       function clearFormDataExceptDeviceCode() {
         if (registrationDateEl) registrationDateEl.value = "";
         if (bedNumberEl) bedNumberEl.value = "";
         if (idNumberEl) idNumberEl.value = "";
         if (patientNameEl) patientNameEl.value = "";
-        if (powerOnTimeEl) powerOnTimeEl.value = "";
-        if (powerOffTimeEl) powerOffTimeEl.value = "";
+        if (powerOnHourEl) powerOnHourEl.value = "08";
+        if (powerOnMinuteEl) powerOnMinuteEl.value = "00";
+        if (powerOffHourEl) powerOffHourEl.value = "18";
+        if (powerOffMinuteEl) powerOffMinuteEl.value = "00";
         if (terminalDisinfectionEl) terminalDisinfectionEl.value = "";
         var radios = document.querySelectorAll("input[name='equipment_condition']");
         if (radios.length) radios[0].checked = true;
@@ -901,7 +989,12 @@
         }
       }
 
+      fillTimeSelects();
+      setDefaultDateAndTime();
+
       deviceCodeInput.addEventListener("input", updateQueryButtonState);
+      deviceCodeInput.addEventListener("keyup", updateQueryButtonState);
+      deviceCodeInput.addEventListener("change", updateQueryButtonState);
       deviceCodeInput.addEventListener("blur", function () {
         var trimmed = deviceCodeInput.value.trim();
         if (!trimmed) { showDeviceCodeError(""); return; }
@@ -924,8 +1017,8 @@
         var bedNumber = (bedNumberEl && bedNumberEl.value) ? bedNumberEl.value.trim() : null;
         var idNumber = (idNumberEl && idNumberEl.value) ? idNumberEl.value.trim() : null;
         var regDate = registrationDateEl && registrationDateEl.value ? registrationDateEl.value : "";
-        var onTime = powerOnTimeEl && powerOnTimeEl.value ? powerOnTimeEl.value : "08:00";
-        var offTime = powerOffTimeEl && powerOffTimeEl.value ? powerOffTimeEl.value : "18:00";
+        var onTime = (powerOnHourEl && powerOnMinuteEl) ? (powerOnHourEl.value + ":" + powerOnMinuteEl.value) : "08:00";
+        var offTime = (powerOffHourEl && powerOffMinuteEl) ? (powerOffHourEl.value + ":" + powerOffMinuteEl.value) : "18:00";
         var startTime = regDate && onTime ? regDate + "T" + onTime + ":00" : null;
         var endTime = regDate && offTime ? regDate + "T" + offTime + ":00" : null;
         var eqCond = (document.querySelector("input[name='equipment_condition']:checked") || {}).value || "normal";

@@ -5,6 +5,13 @@ from io import BytesIO, StringIO
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+
+from .time_utils import (
+    china_today,
+    now_china_as_utc,
+    parse_naive_as_china_then_utc,
+    utc_naive_to_china_str,
+)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -22,13 +29,13 @@ EXPORT_HEADERS = [
     "维护人", "使用类型", "设备状况", "日常保养", "终末消毒", "备注",
 ]
 
-# 导出日期时间格式：与系统查询列表展示一致（YYYY-MM-DD HH:mm:ss）
+# 导出日期时间格式：中国时区展示（YYYY-MM-DD HH:mm:ss）
 _DISPLAY_DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 
 def _format_display_datetime(dt: Optional[datetime]) -> str:
-    """格式化为系统展示用日期时间，用于导出与查询页一致。"""
-    return dt.strftime(_DISPLAY_DATETIME_FMT) if dt else ""
+    """格式化为中国时区展示用日期时间，用于导出与查询页一致。"""
+    return utc_naive_to_china_str(dt, _DISPLAY_DATETIME_FMT)
 
 
 def _get_usage_type_label_map(db: Session) -> dict:
@@ -178,8 +185,8 @@ def create_usage_record(
     if not device or getattr(device, "is_deleted", False):
         raise HTTPException(status_code=404, detail="设备不存在或已停用/已删除")
 
-    # 防重复：短时间同一用户、同一设备只保留一条（不含已撤销）
-    cutoff = datetime.utcnow() - timedelta(seconds=DUPLICATE_WINDOW_SECONDS)
+    # 防重复：短时间同一用户、同一设备只保留一条（不含已撤销），按中国当前时间计算
+    cutoff = now_china_as_utc() - timedelta(seconds=DUPLICATE_WINDOW_SECONDS)
     existing = (
         db.query(models.UsageRecord)
         .filter(
@@ -197,10 +204,14 @@ def create_usage_record(
     data = payload.model_dump()
     data["usage_type"] = str(payload.usage_type)
     if not data.get("start_time"):
-        data["start_time"] = datetime.utcnow()
-    # 维护登记：若前端传了登记日期则用，否则用当天（后台 created_at 仍为实际提交时间）
+        data["start_time"] = now_china_as_utc()
+    # 维护登记：若前端传了登记日期则用，否则用中国时区当天
     if data.get("registration_date") is None:
-        data["registration_date"] = datetime.utcnow().date()
+        data["registration_date"] = china_today()
+    # 前端传入的 naive 时间视为中国时区，转为 UTC 存库
+    for key in ("start_time", "end_time"):
+        if data.get(key) is not None:
+            data[key] = parse_naive_as_china_then_utc(data[key])
     photo_urls_list = data.pop("photo_urls", None)
     if photo_urls_list:
         data["photo_urls"] = ",".join(photo_urls_list)
@@ -230,7 +241,7 @@ def undo_usage_record(
     if getattr(record, "is_deleted", False):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该记录已撤销")
     window_hours = max(0, getattr(settings, "UNDO_WINDOW_HOURS", 24))
-    cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+    cutoff = now_china_as_utc() - timedelta(hours=window_hours)
     if (record.created_at or record.start_time) < cutoff:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -295,6 +306,8 @@ def count_usage_records(
     """返回符合条件的使用记录总数，用于分页与工作台统计。"""
     if current_user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后查看记录")
+    from_time = parse_naive_as_china_then_utc(from_time) if from_time else None
+    to_time = parse_naive_as_china_then_utc(to_time) if to_time else None
     allow_include_deleted = (user_id is None) and include_deleted
     query = _list_usage_query(
         db, current_user, device_code, dept, user_id, from_time, to_time,
@@ -325,6 +338,8 @@ def list_usage_records(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先登录后查看记录",
         )
+    from_time = parse_naive_as_china_then_utc(from_time) if from_time else None
+    to_time = parse_naive_as_china_then_utc(to_time) if to_time else None
     allow_include_deleted = (user_id is None) and include_deleted
     query = (
         _list_usage_query(
@@ -506,6 +521,8 @@ def export_usage_records(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="仅管理员可导出",
         )
+    from_time = parse_naive_as_china_then_utc(from_time) if from_time else None
+    to_time = parse_naive_as_china_then_utc(to_time) if to_time else None
     total = _usage_query(
         db, device_code, dept, user_id, from_time, to_time,
         registration_date_from, registration_date_to, bed_number,

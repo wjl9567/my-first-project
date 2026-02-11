@@ -1,7 +1,9 @@
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from .time_utils import datetime_to_iso_utc
 
 
 class LoginRequest(BaseModel):
@@ -20,6 +22,11 @@ class UserRead(UserBase):
     id: int
     created_at: datetime
 
+    @field_serializer("created_at")
+    @classmethod
+    def _ser_created_at(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
+
     class Config:
         from_attributes = True
 
@@ -33,6 +40,11 @@ class UserListRead(BaseModel):
     role: str
     dept: Optional[str] = None
     created_at: datetime
+
+    @field_serializer("created_at")
+    @classmethod
+    def _ser_created_at(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
 
     class Config:
         from_attributes = True
@@ -67,6 +79,11 @@ class DeviceRead(DeviceBase):
     id: int
     is_deleted: bool = False
     created_at: datetime
+
+    @field_serializer("created_at")
+    @classmethod
+    def _ser_created_at(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
 
     @field_validator("status", mode="before")
     @classmethod
@@ -128,6 +145,11 @@ class UsageRecordRead(UsageRecordBase):
     created_at: datetime
     is_deleted: bool = False
 
+    @field_serializer("created_at", "start_time", "end_time")
+    @classmethod
+    def _ser_datetime(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
+
     @field_validator("usage_type", mode="before")
     @classmethod
     def usage_type_to_int(cls, v: Union[str, int]) -> int:
@@ -164,6 +186,11 @@ class DictItemRead(BaseModel):
     sort_order: int
     created_at: datetime
 
+    @field_serializer("created_at")
+    @classmethod
+    def _ser_created_at(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
+
     @field_validator("code", mode="before")
     @classmethod
     def code_to_int(cls, v: Union[str, int]) -> int:
@@ -190,6 +217,11 @@ class AuditLogRead(BaseModel):
     target_code: Optional[str] = None  # 设备编码等，当 target_type=device 时由后端填充
     details: Optional[str] = None
     created_at: datetime
+
+    @field_serializer("created_at")
+    @classmethod
+    def _ser_created_at(cls, v: datetime | None) -> str | None:
+        return datetime_to_iso_utc(v)
 
     class Config:
         from_attributes = True
