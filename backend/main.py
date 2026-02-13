@@ -4,14 +4,14 @@ import pathlib
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .config import JWT_SECRET_DEFAULT, settings
 from .database import Base, engine
 from . import models
-from . import routes_auth, routes_audit, routes_devices, routes_dict, routes_usage, routes_users
+from . import routes_auth, routes_audit, routes_dashboard, routes_devices, routes_dict, routes_usage, routes_users
 from .admin_access import AdminAccessMiddleware
 
 _logger = logging.getLogger(__name__)
@@ -29,15 +29,35 @@ _DOCS_DESCRIPTION = (
 def create_app() -> FastAPI:
     # 创建所有表（MVP 阶段可直接使用，后续可改为 Alembic 迁移）
     Base.metadata.create_all(bind=engine)
-    # 轻量自迁移：为 users 增加 is_active（停用/启用）
+    # 轻量自迁移：为 users 增加 is_active（停用/启用）（SQLite 不支持 ADD COLUMN IF NOT EXISTS，用 try 忽略已存在）
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_active ON users (is_active)"))
-            conn.commit()
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
+                conn.commit()
+            except Exception as e:
+                if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
+                    raise
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_is_active ON users (is_active)"))
+                conn.commit()
+            except Exception:
+                pass
     except Exception:
         _logger.exception("users.is_active 自动迁移失败（请检查数据库权限或手工执行迁移）")
+    # 轻量自迁移：usage_records 增加 returned_at、repair_completed_at（借用/维修闭环）
+    try:
+        from sqlalchemy import text
+        for col in ("returned_at", "repair_completed_at"):
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text(f"ALTER TABLE usage_records ADD COLUMN {col} TIMESTAMP"))
+                    conn.commit()
+            except Exception:
+                pass  # 列已存在或数据库不支持则忽略
+    except Exception:
+        _logger.exception("usage_records.returned_at/repair_completed_at 自动迁移失败")
     # 字典表为空时写入初始数据
     from .database import SessionLocal
     try:
@@ -87,6 +107,14 @@ def create_app() -> FastAPI:
     async def root():
         return {"message": "设备扫码登记系统 API 在线"}
 
+    # 短链：扫带「纯编号」的二维码时，若打印为 URL 可指向此路径，自动跳转登记页
+    @app.get("/s/{device_code}", response_class=RedirectResponse, include_in_schema=False)
+    async def short_scan_redirect(device_code: str):
+        return RedirectResponse(
+            url=f"/h5/scan?device_code={device_code}",
+            status_code=302,
+        )
+
     # H5 页面：设备扫码登记
     @app.get("/h5/scan", response_class=HTMLResponse)
     async def h5_scan(request: Request):
@@ -105,15 +133,23 @@ def create_app() -> FastAPI:
         )
 
     # 后台管理（设备列表、使用记录查询与导出，需管理员登录）
-    @app.get("/admin", response_class=HTMLResponse)
-    async def admin_page(request: Request):
+    async def _serve_admin(request: Request):
         return templates.TemplateResponse(
             "admin.html",
             {"request": request, "app_version": app.version},
         )
 
+    @app.get("/admin", response_class=HTMLResponse)
+    async def admin_page(request: Request):
+        return await _serve_admin(request)
+
+    @app.get("/admin/", response_class=HTMLResponse)
+    async def admin_page_trailing(request: Request):
+        return await _serve_admin(request)
+
     app.include_router(routes_auth.router)
     app.include_router(routes_audit.router)
+    app.include_router(routes_dashboard.router)
     app.include_router(routes_devices.router)
     app.include_router(routes_dict.router)
     app.include_router(routes_usage.router)

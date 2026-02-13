@@ -20,6 +20,11 @@ from .audit import log_audit
 from .auth import get_current_user_optional, get_current_user
 from .config import settings
 from .database import get_db
+from .form_templates import (
+    get_form_schema as get_form_schema_from_templates,
+    DEFAULT_USAGE_TYPE_TEMPLATE_MAP,
+    TEMPLATE_FIELDS,
+)
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
 
@@ -161,6 +166,51 @@ def _fetch_export_records(
 DUPLICATE_WINDOW_SECONDS = 10
 
 
+def _validate_payload_by_template(
+    usage_type_str: str, payload: schemas.UsageRecordCreate
+) -> Optional[str]:
+    """根据操作类型对应的模板，校验提交字段的必填项。
+
+    返回 None 表示校验通过，否则返回错误提示字符串。
+    """
+    template_key = DEFAULT_USAGE_TYPE_TEMPLATE_MAP.get(usage_type_str, "normal")
+    fields = TEMPLATE_FIELDS.get(template_key, [])
+
+    for field in fields:
+        if not field.get("required"):
+            continue
+        fid = field["id"]
+        val = getattr(payload, fid, None)
+        # 对字符串类型进一步检查空白
+        if val is None or (isinstance(val, str) and not val.strip()):
+            return f"必填项「{field['label']}」不能为空"
+    return None
+
+
+@router.get(
+    "/form-schema",
+    response_model=dict,
+    summary="获取登记表单模板（按操作类型/科室联动）",
+)
+def get_usage_form_schema(
+    usage_type: str = Query(..., description="操作类型编码，如 1 常规使用、2 借用、3 维修"),
+    dept: Optional[str] = Query(None, description="科室，预留科室专属模板"),
+    db: Session = Depends(get_db),
+):
+    """根据操作类型返回差异化表单字段配置，供 H5 联动加载；预留 dept 支持科室专属模板。"""
+    usage_type_str = str(usage_type).strip()
+    if not usage_type_str:
+        raise HTTPException(status_code=400, detail="usage_type 不能为空")
+    label_map = _get_usage_type_label_map(db)
+    usage_type_label = label_map.get(usage_type_str)
+    return get_form_schema_from_templates(
+        usage_type=usage_type_str,
+        dept=dept,
+        db=db,
+        usage_type_label=usage_type_label,
+    )
+
+
 @router.post(
     "",
     response_model=schemas.UsageRecordRead,
@@ -174,6 +224,12 @@ def create_usage_record(
     # 必须登录后登记，保证每条记录归属到对应用户，不同用户内容可区分
     user = current_user
 
+    # 服务端模板校验：按操作类型检查必填字段
+    usage_type_str = str(payload.usage_type)
+    template_err = _validate_payload_by_template(usage_type_str, payload)
+    if template_err:
+        raise HTTPException(status_code=400, detail=template_err)
+
     device = (
         db.query(models.Device)
         .filter(
@@ -184,6 +240,24 @@ def create_usage_record(
     )
     if not device or getattr(device, "is_deleted", False):
         raise HTTPException(status_code=404, detail="设备不存在或已停用/已删除")
+
+    # 借用互斥：同一设备只能有一条未归还的借用记录
+    if usage_type_str == "2":
+        unreturned = (
+            db.query(models.UsageRecord)
+            .filter(
+                models.UsageRecord.device_code == payload.device_code,
+                models.UsageRecord.usage_type == "2",
+                models.UsageRecord.is_deleted.is_(False),
+                models.UsageRecord.returned_at.is_(None),
+            )
+            .first()
+        )
+        if unreturned:
+            raise HTTPException(
+                status_code=400,
+                detail="该设备当前有未归还的借用记录，请先归还后再借",
+            )
 
     # 防重复：短时间同一用户、同一设备只保留一条（不含已撤销），按中国当前时间计算
     cutoff = now_china_as_utc() - timedelta(seconds=DUPLICATE_WINDOW_SECONDS)
@@ -208,10 +282,22 @@ def create_usage_record(
     # 维护登记：若前端传了登记日期则用，否则用中国时区当天
     if data.get("registration_date") is None:
         data["registration_date"] = china_today()
+    # 登记日期不能为未来日期
+    if data.get("registration_date") is not None and data["registration_date"] > china_today():
+        raise HTTPException(status_code=400, detail="登记日期不能为未来日期")
+
     # 前端传入的 naive 时间视为中国时区，转为 UTC 存库
     for key in ("start_time", "end_time"):
         if data.get(key) is not None:
             data[key] = parse_naive_as_china_then_utc(data[key])
+
+    # 时间逻辑：借用允许当天借当天还（预计归还日期可等于借用日期）；其他类型结束时间必须晚于开始时间
+    if data.get("start_time") and data.get("end_time"):
+        if data["end_time"] < data["start_time"]:
+            raise HTTPException(status_code=400, detail="预计归还日期不能早于借用日期")
+        if usage_type_str != "2" and data["end_time"] <= data["start_time"]:
+            raise HTTPException(status_code=400, detail="结束时间必须晚于开始时间（如关机时间晚于开机时间）")
+
     photo_urls_list = data.pop("photo_urls", None)
     if photo_urls_list:
         data["photo_urls"] = ",".join(photo_urls_list)
@@ -248,6 +334,52 @@ def undo_usage_record(
             detail=f"仅支持撤销最近 {window_hours} 小时内的登记记录",
         )
     record.is_deleted = True
+    db.commit()
+    return None
+
+
+@router.post("/{record_id}/return", status_code=status.HTTP_204_NO_CONTENT)
+def return_borrow_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """标记借用记录为已归还（仅本人可操作）。"""
+    record = db.get(models.UsageRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    if record.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能操作自己的登记记录")
+    if str(record.usage_type) != "2":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="仅借用记录可标记归还")
+    if getattr(record, "returned_at", None) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该借用已归还")
+    if getattr(record, "is_deleted", False):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已撤销的记录不能操作")
+    record.returned_at = now_china_as_utc()
+    db.commit()
+    return None
+
+
+@router.post("/{record_id}/repair-complete", status_code=status.HTTP_204_NO_CONTENT)
+def complete_repair_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """标记维修记录为已完成（仅本人可操作）。"""
+    record = db.get(models.UsageRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    if record.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能操作自己的登记记录")
+    if str(record.usage_type) != "3":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="仅维修记录可标记完成")
+    if getattr(record, "repair_completed_at", None) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该维修已标记完成")
+    if getattr(record, "is_deleted", False):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已撤销的记录不能操作")
+    record.repair_completed_at = now_china_as_utc()
     db.commit()
     return None
 

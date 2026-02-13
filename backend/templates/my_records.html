@@ -244,6 +244,27 @@
       }
       .record-card .btn-undo.enabled:hover { background: var(--primary); border-color: var(--primary); }
       .record-card .btn-undo.enabled:active { opacity: 0.9; }
+      .record-card .btn-return,
+      .record-card .btn-repair-complete {
+        padding: 6px 14px;
+        font-size: 13px;
+        border-radius: var(--radius);
+        border: none;
+        background: var(--primary-dark);
+        color: #fff;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      .record-card .btn-return:hover, .record-card .btn-repair-complete:hover { opacity: 0.9; }
+      .record-card .tag-returned, .record-card .tag-repair-done {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        font-size: 12px;
+        border-radius: 4px;
+        background: #ccfbf1;
+        color: #0f766e;
+      }
       .record-card.record-card-undo {
         background: #f1f5f9;
         color: var(--text-muted);
@@ -515,17 +536,26 @@
           card.className = "record-card" + (isUndo ? " record-card-undo" : "");
           var typeText = typeNames[r.usage_type] || String(r.usage_type);
           var undoTag = isUndo ? "<span class=\"record-undo-tag\">已撤销</span>" : "";
+          var returnedTag = (!isUndo && r.usage_type === 2 && r.returned_at) ? "<span class=\"tag-returned\">已归还</span>" : "";
+          var repairDoneTag = (!isUndo && r.usage_type === 3 && r.repair_completed_at) ? "<span class=\"tag-repair-done\">已完成</span>" : "";
           var regDate = r.registration_date ? formatDateOnly(r.registration_date) : "";
           var deviceLine = escapeHtml(r.device_name ? (r.device_name + "（" + (r.device_code || "") + "）") : ("设备 " + (r.device_code || "")));
           var extraParts = [];
           if (r.bed_number) extraParts.push("床号 " + escapeHtml(r.bed_number));
           if (r.id_number) extraParts.push("ID " + escapeHtml(r.id_number));
           if (r.patient_name) extraParts.push(escapeHtml(r.patient_name));
-          if (r.start_time) extraParts.push("开机 " + formatTimeOnly(r.start_time));
-          if (r.end_time) extraParts.push("关机 " + formatTimeOnly(r.end_time));
-          var eqCond = r.equipment_condition === "abnormal" ? "异常" : (r.equipment_condition === "normal" ? "正常" : "");
+          if (r.usage_type === 2 || r.usage_type === "2") {
+            if (r.end_time) extraParts.push("预计归还 " + formatDateOnly(r.end_time));
+          } else if (r.usage_type === 3 || r.usage_type === "3") {
+            // 维修/故障：已去掉报修时间、期望完成时间，仅展示报修人、故障描述等
+          } else {
+            if (r.start_time) extraParts.push("开机 " + formatTimeOnly(r.start_time));
+            if (r.end_time) extraParts.push("关机 " + formatTimeOnly(r.end_time));
+          }
+          var isNormal = (r.usage_type === 1 || r.usage_type === "1");
+          var eqCond = isNormal && (r.equipment_condition === "abnormal" ? "异常" : (r.equipment_condition === "normal" ? "正常" : ""));
           if (eqCond) extraParts.push("状况 " + eqCond);
-          var daily = r.daily_maintenance === "disinfect" ? "消毒" : (r.daily_maintenance === "clean" ? "清洁" : "");
+          var daily = isNormal && (r.daily_maintenance === "disinfect" ? "消毒" : (r.daily_maintenance === "clean" ? "清洁" : ""));
           if (daily) extraParts.push(daily);
           var extraHtml = extraParts.length ? "<div class=\"extra\">" + extraParts.join(" · ") + "</div>" : "";
           var eqStatusText = eqCond ? "设备状况：" + eqCond : (daily ? "日常保养：" + daily : "");
@@ -536,11 +566,15 @@
           var canUndo = canUndoRecord(r);
           var undoBtnClass = canUndo ? "btn-undo enabled" : "btn-undo";
           var undoBtnDisabled = canUndo ? "" : " disabled";
-          var actionsHtml = isUndo
-            ? ""
-            : "<div class=\"card-actions\"><button type=\"button\" class=\"" + undoBtnClass + "\" data-id=\"" + (r.id || "") + "\"" + undoBtnDisabled + ">撤销</button></div>";
+          var showReturnBtn = !isUndo && r.usage_type === 2 && !r.returned_at;
+          var showRepairCompleteBtn = !isUndo && r.usage_type === 3 && !r.repair_completed_at;
+          var actionBtns = "";
+          if (showReturnBtn) actionBtns += "<button type=\"button\" class=\"btn-return\" data-id=\"" + (r.id || "") + "\">归还</button>";
+          if (showRepairCompleteBtn) actionBtns += "<button type=\"button\" class=\"btn-repair-complete\" data-id=\"" + (r.id || "") + "\">完成</button>";
+          actionBtns += "<button type=\"button\" class=\"" + undoBtnClass + "\" data-id=\"" + (r.id || "") + "\"" + undoBtnDisabled + ">撤销</button>";
+          var actionsHtml = isUndo ? "" : "<div class=\"card-actions\">" + actionBtns + "</div>";
           card.innerHTML =
-            "<div class=\"time\">" + (regDate || formatTime(r.start_time)) + undoTag + "</div>" +
+            "<div class=\"time\">" + (regDate || formatTime(r.start_time)) + undoTag + returnedTag + repairDoneTag + "</div>" +
             "<div class=\"device\">" + deviceLine + " · " + escapeHtml(typeText) + "</div>" +
             statusLine +
             (r.user_name ? "<div class=\"meta\">维护人：" + escapeHtml(r.user_name) + "</div>" : "") +
@@ -552,8 +586,51 @@
           if (!isUndo) {
             var btn = card.querySelector(".btn-undo");
             if (btn && canUndo) btn.addEventListener("click", function () { onUndo(r.id, card); });
+            var btnReturn = card.querySelector(".btn-return");
+            if (btnReturn) btnReturn.addEventListener("click", function () { onReturn(r.id, card); });
+            var btnRepairComplete = card.querySelector(".btn-repair-complete");
+            if (btnRepairComplete) btnRepairComplete.addEventListener("click", function () { onRepairComplete(r.id, card); });
           }
         });
+      }
+
+      function onReturn(recordId, cardEl) {
+        if (!recordId) return;
+        var btn = cardEl ? cardEl.querySelector(".btn-return") : null;
+        if (btn) btn.disabled = true;
+        fetch("/api/usage/" + recordId + "/return", { method: "POST", headers: authHeaders() })
+          .then(function (res) {
+            if (res.status === 401) { alert("请先登录"); if (btn) btn.disabled = false; return; }
+            if (res.status === 403) { alert("只能操作自己的登记记录"); if (btn) btn.disabled = false; return; }
+            if (!res.ok) {
+              res.json().then(function (body) { alert((body && body.detail) ? body.detail : "操作失败"); }).catch(function () { alert("操作失败"); });
+              if (btn) btn.disabled = false;
+              return;
+            }
+            var r = recordsLoaded.find(function (x) { return x.id === recordId; });
+            if (r) r.returned_at = new Date().toISOString();
+            renderRecordCards(recordsLoaded);
+          })
+          .catch(function () { alert("网络异常"); if (btn) btn.disabled = false; });
+      }
+      function onRepairComplete(recordId, cardEl) {
+        if (!recordId) return;
+        var btn = cardEl ? cardEl.querySelector(".btn-repair-complete") : null;
+        if (btn) btn.disabled = true;
+        fetch("/api/usage/" + recordId + "/repair-complete", { method: "POST", headers: authHeaders() })
+          .then(function (res) {
+            if (res.status === 401) { alert("请先登录"); if (btn) btn.disabled = false; return; }
+            if (res.status === 403) { alert("只能操作自己的登记记录"); if (btn) btn.disabled = false; return; }
+            if (!res.ok) {
+              res.json().then(function (body) { alert((body && body.detail) ? body.detail : "操作失败"); }).catch(function () { alert("操作失败"); });
+              if (btn) btn.disabled = false;
+              return;
+            }
+            var r = recordsLoaded.find(function (x) { return x.id === recordId; });
+            if (r) r.repair_completed_at = new Date().toISOString();
+            renderRecordCards(recordsLoaded);
+          })
+          .catch(function () { alert("网络异常"); if (btn) btn.disabled = false; });
       }
 
       var undoPendingId = null;

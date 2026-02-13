@@ -1,15 +1,16 @@
 import csv
 from io import BytesIO, StringIO
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .audit import log_audit
 from .auth import get_current_user_optional, require_role
+from .config import settings
 from .database import engine, get_db
 
 # 设备导出表头
@@ -298,6 +299,119 @@ def export_devices(
     )
 
 
+# 批量导入表头（与模板一致）
+IMPORT_HEADERS = ["设备编号", "设备名称", "科室", "位置", "状态"]
+
+
+@router.get("/import-template")
+def download_import_template(
+    _user=Depends(require_role("device_admin", "sys_admin")),
+):
+    """下载设备批量导入 Excel 模板（含表头与示例行）。"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "设备导入"
+    for col, h in enumerate(IMPORT_HEADERS, 1):
+        ws.cell(row=1, column=col, value=h)
+    ws.cell(row=2, column=1, value="DEV-001")
+    ws.cell(row=2, column=2, value="示例设备")
+    ws.cell(row=2, column=3, value="内科")
+    ws.cell(row=2, column=4, value="一楼")
+    ws.cell(row=2, column=5, value="1")
+    for c in range(1, len(IMPORT_HEADERS) + 1):
+        ws.cell(row=1, column=c).font = Font(bold=True)
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="devices_import_template.xlsx"'},
+    )
+
+
+@router.post("/import", response_model=Dict[str, Any])
+def import_devices(
+    file: UploadFile = File(..., description="Excel 文件（.xlsx），表头：设备编号、设备名称、科室、位置、状态）"),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("device_admin", "sys_admin")),
+):
+    """批量导入设备：Excel 首行为表头，从第二行起为数据；设备编号重复则跳过该行。"""
+    if not file.filename or not (file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
+        raise HTTPException(status_code=400, detail="请上传 .xlsx 格式的 Excel 文件")
+    content = file.file.read()
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"无法解析 Excel：{e!s}")
+    ws = wb.active
+    if not ws:
+        raise HTTPException(status_code=400, detail="Excel 无有效工作表")
+    created = 0
+    skipped = 0
+    errors: List[str] = []
+    seen_codes: set[str] = set()
+    for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        if not row or all(cell is None or (isinstance(cell, str) and not cell.strip()) for cell in row):
+            continue
+        code = (row[0] if len(row) > 0 else None)
+        name = (row[1] if len(row) > 1 else None)
+        dept = (row[2] if len(row) > 2 else None)
+        location = (row[3] if len(row) > 3 else None) or None
+        status_val = (row[4] if len(row) > 4 else None) or "1"
+        code = str(code).strip() if code is not None else ""
+        name = str(name).strip() if name is not None else ""
+        dept = str(dept).strip() if dept is not None else ""
+        location = str(location).strip() if location else None
+        if not code:
+            errors.append(f"第{row_idx}行：设备编号为空，已跳过")
+            skipped += 1
+            continue
+        if not name:
+            errors.append(f"第{row_idx}行：设备名称为空，已跳过")
+            skipped += 1
+            continue
+        if not dept:
+            errors.append(f"第{row_idx}行：科室为空，已跳过")
+            skipped += 1
+            continue
+        if code in seen_codes:
+            errors.append(f"第{row_idx}行：设备编号 {code} 在本文件中重复，已跳过")
+            skipped += 1
+            continue
+        seen_codes.add(code)
+        status_str = str(status_val).strip() if status_val else "1"
+        if status_str.isdigit():
+            pass
+        else:
+            status_str = "1"
+        existed = db.query(models.Device).filter(models.Device.device_code == code).first()
+        if existed:
+            errors.append(f"第{row_idx}行：设备编号 {code} 已存在，已跳过")
+            skipped += 1
+            continue
+        device = models.Device(
+            device_code=code,
+            name=name,
+            dept=dept,
+            location=location,
+            status=status_str,
+            is_active=True,
+            is_deleted=False,
+        )
+        db.add(device)
+        db.flush()
+        log_audit(db, current_user.id, "device.create", "device", device.id, f"device_code={code},import", do_commit=False)
+        created += 1
+    wb.close()
+    db.commit()
+    log_audit(db, current_user.id, "device.import", None, None, f"created={created},skipped={skipped}")
+    return {"created": created, "skipped": skipped, "errors": errors}
+
+
 @router.get("/{device_id}", response_model=schemas.DeviceRead)
 def get_device(device_id: int, db: Session = Depends(get_db)):
     device = db.get(models.Device, device_id)
@@ -319,8 +433,15 @@ def get_device_qrcode(
     if not device or getattr(device, "is_deleted", False) or not device.is_active:
         raise HTTPException(status_code=404, detail="设备不存在")
 
-    # 简单示例：用设备编号构造一个占位链接，后续可替换为正式域名
-    qr_value = device.qr_value or f"/h5/scan?device_code={device.device_code}"
+    # 二维码内容必须为完整 URL，否则企微/浏览器扫码无法打开
+    path = f"/h5/scan?device_code={device.device_code}"
+    if device.qr_value and (device.qr_value.startswith("http://") or device.qr_value.startswith("https://")):
+        qr_value = device.qr_value
+    else:
+        relative = (device.qr_value or path).strip()
+        if not relative.startswith("/"):
+            relative = "/" + relative
+        qr_value = f"{settings.BASE_URL.rstrip('/')}{relative}"
 
     img = qrcode.make(qr_value)
     buf = BytesIO()

@@ -120,6 +120,9 @@ class UsageRecord(Base):
         DateTime, default=datetime.utcnow
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)  # 用户撤销（软删除）
+    # 借用/维修闭环：归还时间、维修完成时间（为空表示未归还/未完成）
+    returned_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    repair_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
     device: Mapped["Device"] = relationship(
         "Device", back_populates="usage_records"

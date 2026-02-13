@@ -290,6 +290,40 @@
         line-height: 1;
       }
       .required-star { color: #dc2626; margin-right: 2px; }
+      /* 内联字段校验错误提示 */
+      .field-error {
+        font-size: 13px;
+        color: #dc2626;
+        margin-top: 4px;
+        line-height: 1.4;
+        display: none;
+      }
+      .field.has-error input,
+      .field.has-error select,
+      .field.has-error textarea {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1) !important;
+      }
+      .field.has-error .time-group {
+        border-color: #dc2626;
+      }
+      /* 动态表单切换过渡 */
+      #dynamic-form-fields {
+        animation: fadeSlideIn 0.25s ease;
+      }
+      @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .template-hint {
+        font-size: 13px;
+        color: var(--primary-dark);
+        background: var(--primary-tint);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        line-height: 1.5;
+      }
       /* 设备状况/日常保养：单选题样式，选中项前显示打钩 √ */
       .radio-group {
         display: flex;
@@ -411,6 +445,21 @@
         color: var(--primary-dark);
         border: 2px solid var(--primary);
       }
+      .success-panel .actions a.btn-link {
+        display: inline-block;
+        min-height: var(--touch-min);
+        padding: 12px 20px;
+        border-radius: var(--radius);
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        color: var(--primary-dark);
+        border: 2px solid var(--border);
+        background: var(--surface);
+        box-sizing: border-box;
+      }
+      .success-panel .actions a.btn-link:hover { border-color: var(--primary); color: var(--primary); }
       /* 底部导航：与 my_records 一致 */
       .bottom-nav {
         position: fixed;
@@ -536,7 +585,7 @@
   <body>
     <div class="page-header">
       <h1>设备使用维护登记</h1>
-      <p class="sub"><span class="step-current">扫一扫或输入设备编号</span><span class="step-next"> → 填写登记信息 → 提交</span></p>
+      <p class="sub"><span class="step-current">扫一扫（支持完整链接或纯资产编号）或输入设备编号</span><span class="step-next"> → 填写登记信息 → 提交</span></p>
     </div>
     <div id="dev-login-hint" class="dev-login-hint" style="display:none;">
       开发环境：请先在 <a href="/admin">后台</a> 使用管理员账号登录（需在 backend 目录 .env 中配置 ADMIN_USERNAME、ADMIN_PASSWORD），同一浏览器再刷新本页即可登记。
@@ -571,71 +620,9 @@
           <label>操作类型</label>
           <select id="usage_type" aria-label="操作类型"></select>
         </div>
-        <div class="field required">
-          <label>登记日期</label>
-          <input id="registration_date" type="date" />
-        </div>
-        <div class="field optional">
-          <label>床号</label>
-          <input id="bed_number" type="text" placeholder="选填" maxlength="32" />
-        </div>
-        <div class="field optional">
-          <label>ID 号</label>
-          <input id="id_number" type="text" placeholder="选填" maxlength="64" />
-        </div>
-        <div class="field optional">
-          <label>姓名</label>
-          <input id="patient_name" type="text" placeholder="选填" maxlength="64" />
-        </div>
-        <div class="field required time-field-inline">
-          <div class="time-block">
-            <div class="time-group">
-              <span class="time-group-label"><span class="required-star">*</span>开机时间</span>
-              <select id="power_on_hour" aria-label="开机时"></select>
-              <span class="time-sep">:</span>
-              <select id="power_on_minute" aria-label="开机分"></select>
-            </div>
-            <div class="time-group">
-              <span class="time-group-label"><span class="required-star">*</span>关机时间</span>
-              <select id="power_off_hour" aria-label="关机时"></select>
-              <span class="time-sep">:</span>
-              <select id="power_off_minute" aria-label="关机分"></select>
-            </div>
-          </div>
-        </div>
-        <div class="field">
-          <label><span class="required-star">*</span>设备状况</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" name="equipment_condition" value="normal" checked />
-              <span class="radio-visual" aria-hidden="true"></span>
-              <span class="radio-text">正常</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="equipment_condition" value="abnormal" />
-              <span class="radio-visual" aria-hidden="true"></span>
-              <span class="radio-text">异常</span>
-            </label>
-          </div>
-        </div>
-        <div class="field">
-          <label><span class="required-star">*</span>日常保养</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" name="daily_maintenance" value="clean" checked />
-              <span class="radio-visual" aria-hidden="true"></span>
-              <span class="radio-text">清洁</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="daily_maintenance" value="disinfect" />
-              <span class="radio-visual" aria-hidden="true"></span>
-              <span class="radio-text">消毒</span>
-            </label>
-          </div>
-        </div>
-        <div class="field optional">
-          <label>终末消毒</label>
-          <textarea id="terminal_disinfection" rows="2" maxlength="500" placeholder="选填，可填写终末消毒备注"></textarea>
+        <div id="form-template-container">
+          <!-- 动态表单：由 Schema API 驱动渲染，支持字典扩展与科室专属模板 -->
+          <div id="dynamic-form-fields"></div>
         </div>
 
         <button type="button" id="submit-btn" class="btn-submit">提交登记</button>
@@ -644,9 +631,10 @@
 
       <div class="success-panel" id="success-panel" style="display:none;">
         <h3>登记成功</h3>
-        <p class="success-hint">本台设备使用维护登记已保存，可继续登记下一台。</p>
+        <p class="success-hint">本台设备使用维护登记已保存，可继续登记下一台或查看我的记录。</p>
         <div class="actions">
           <button type="button" class="btn-next" id="btn-next-device">登记下一台</button>
+          <a href="/h5/my-records" class="btn-next btn-link" id="btn-my-records">查看我的记录</a>
         </div>
       </div>
     </div>
@@ -661,7 +649,7 @@
         <video id="scan-video" playsinline muted></video>
         <canvas id="scan-canvas"></canvas>
         <div class="scan-frame"></div>
-        <p class="scan-hint">将设备二维码放入框内</p>
+        <p class="scan-hint">将设备二维码或资产标签放入框内，支持完整链接或纯编号（资产编号）</p>
       </div>
       <div class="scan-error" id="scan-error" style="display:none;"></div>
     </div>
@@ -721,16 +709,9 @@
       const scanCanvas = document.getElementById("scan-canvas");
       const scanCancel = document.getElementById("scan-cancel");
       const scanErrorEl = document.getElementById("scan-error");
-      const registrationDateEl = document.getElementById("registration_date");
-      const bedNumberEl = document.getElementById("bed_number");
-      const idNumberEl = document.getElementById("id_number");
-      const patientNameEl = document.getElementById("patient_name");
-      const powerOnHourEl = document.getElementById("power_on_hour");
-      const powerOnMinuteEl = document.getElementById("power_on_minute");
-      const powerOffHourEl = document.getElementById("power_off_hour");
-      const powerOffMinuteEl = document.getElementById("power_off_minute");
-      const terminalDisinfectionEl = document.getElementById("terminal_disinfection");
       const usageTypeEl = document.getElementById("usage_type");
+      const formTemplateContainer = document.getElementById("form-template-container");
+      var currentFormSchema = null;
 
       var DEVICE_CODE_ERROR_MSG = "该设备编码不存在或已被删除，请核对后重新输入/扫描";
 
@@ -777,65 +758,341 @@
           .catch(function () { _setUsageTypeOptions(null); });
       }
 
-      function fillTimeSelects() {
-        var i;
-        function fillHour(sel) {
-          if (!sel) return;
-          sel.innerHTML = "";
-          for (i = 0; i < 24; i++) {
-            var opt = document.createElement("option");
-            opt.value = String(i).padStart(2, "0");
-            opt.textContent = opt.value;
-            sel.appendChild(opt);
-          }
-        }
-        function fillMinute(sel) {
-          if (!sel) return;
-          sel.innerHTML = "";
-          for (i = 0; i < 60; i++) {
-            var opt = document.createElement("option");
-            opt.value = String(i).padStart(2, "0");
-            opt.textContent = opt.value;
-            sel.appendChild(opt);
-          }
-        }
-        fillHour(powerOnHourEl);
-        fillMinute(powerOnMinuteEl);
-        fillHour(powerOffHourEl);
-        fillMinute(powerOffMinuteEl);
+      /* ========== 动态表单渲染引擎 ========== */
+
+      /** HTML 转义 */
+      function _esc(s) {
+        if (!s) return "";
+        var d = document.createElement("div");
+        d.textContent = String(s);
+        return d.innerHTML;
       }
-      function setDefaultDateAndTime() {
+
+      /** 填充小时下拉 */
+      function _fillHourSelect(sel) {
+        if (!sel) return;
+        sel.innerHTML = "";
+        for (var i = 0; i < 24; i++) {
+          var o = document.createElement("option");
+          o.value = String(i).padStart(2, "0");
+          o.textContent = o.value;
+          sel.appendChild(o);
+        }
+      }
+
+      /** 填充分钟下拉 */
+      function _fillMinuteSelect(sel) {
+        if (!sel) return;
+        sel.innerHTML = "";
+        for (var i = 0; i < 60; i++) {
+          var o = document.createElement("option");
+          o.value = String(i).padStart(2, "0");
+          o.textContent = o.value;
+          sel.appendChild(o);
+        }
+      }
+
+      /** 渲染单个普通字段 */
+      function _renderField(container, f) {
+        var div = document.createElement("div");
+        var isReq = !!f.required;
+        div.className = "field" + (f.type === "radio" ? "" : (isReq ? " required" : " optional"));
+        div.setAttribute("data-field-id", f.id);
+        var html = "";
+        switch (f.type) {
+          case "date":
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<input id="df_' + f.id + '" type="date" />' +
+              '<div class="field-error"></div>';
+            break;
+          case "text":
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<input id="df_' + f.id + '" type="text"' +
+              ' placeholder="' + _esc(f.placeholder || "") + '"' +
+              ' maxlength="' + (f.maxlength || 255) + '" />' +
+              '<div class="field-error"></div>';
+            break;
+          case "textarea":
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<textarea id="df_' + f.id + '" rows="' + (f.rows || 2) + '"' +
+              ' maxlength="' + (f.maxlength || 500) + '"' +
+              ' placeholder="' + _esc(f.placeholder || "") + '"></textarea>' +
+              '<div class="field-error"></div>';
+            break;
+          case "time":
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<input id="df_' + f.id + '" type="time" />' +
+              '<div class="field-error"></div>';
+            break;
+          case "datetime_local":
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<input id="df_' + f.id + '" type="datetime-local" />' +
+              '<div class="field-error"></div>';
+            break;
+          case "radio":
+            html = "<label>" + (isReq ? '<span class="required-star">*</span>' : "") + _esc(f.label) + "</label>" +
+              '<div class="radio-group">';
+            (f.options || []).forEach(function (opt, idx) {
+              var checked = f["default"] ? (opt.value === f["default"]) : (idx === 0);
+              html += '<label class="radio-label">' +
+                '<input type="radio" name="df_' + f.id + '" value="' + _esc(opt.value) + '"' + (checked ? " checked" : "") + ' />' +
+                '<span class="radio-visual" aria-hidden="true"></span>' +
+                '<span class="radio-text">' + _esc(opt.label) + '</span></label>';
+            });
+            html += '</div><div class="field-error"></div>';
+            break;
+          default:
+            html = "<label>" + _esc(f.label) + "</label>" +
+              '<input id="df_' + f.id + '" type="text" />' +
+              '<div class="field-error"></div>';
+        }
+        div.innerHTML = html;
+        container.appendChild(div);
+      }
+
+      /** 渲染成组的时分下拉字段（如开机/关机时间） */
+      function _renderTimeGroup(container, groupFields) {
+        var div = document.createElement("div");
+        div.className = "field required time-field-inline";
+        div.setAttribute("data-field-id", groupFields[0].group || groupFields[0].id);
+        var html = '<div class="time-block">';
+        groupFields.forEach(function (f) {
+          html += '<div class="time-group">' +
+            '<span class="time-group-label"><span class="required-star">*</span>' + _esc(f.label) + '</span>' +
+            '<select id="df_' + f.id + '_hour" aria-label="' + _esc(f.label) + '时"></select>' +
+            '<span class="time-sep">:</span>' +
+            '<select id="df_' + f.id + '_minute" aria-label="' + _esc(f.label) + '分"></select>' +
+            '</div>';
+        });
+        html += '</div><div class="field-error"></div>';
+        div.innerHTML = html;
+        container.appendChild(div);
+        groupFields.forEach(function (f) {
+          _fillHourSelect(document.getElementById("df_" + f.id + "_hour"));
+          _fillMinuteSelect(document.getElementById("df_" + f.id + "_minute"));
+          var hSel = document.getElementById("df_" + f.id + "_hour");
+          var mSel = document.getElementById("df_" + f.id + "_minute");
+          if (hSel && f.default_hour) hSel.value = f.default_hour;
+          if (mSel && f.default_minute) mSel.value = f.default_minute;
+        });
+      }
+
+      /**
+       * 根据 Schema API 返回的模板配置，动态渲染表单字段。
+       * 核心函数：实现操作类型联动的差异化表单。
+       */
+      function renderDynamicForm(schema) {
+        var container = document.getElementById("dynamic-form-fields");
+        if (!container) return;
+        container.innerHTML = "";
+        if (!schema || !schema.fields || !schema.fields.length) return;
+        // 模板提示
+        if (schema.template_label) {
+          var hint = document.createElement("div");
+          hint.className = "template-hint";
+          hint.textContent = "当前模式：" + schema.template_label + (schema.usage_type_label && schema.usage_type_label !== schema.template_label ? "（" + schema.usage_type_label + "）" : "");
+          container.appendChild(hint);
+        }
+        var fields = schema.fields;
+        var i = 0;
+        while (i < fields.length) {
+          var f = fields[i];
+          // 识别相邻同 group 的 hour_minute 字段，合并渲染
+          if (f.widget === "hour_minute" && f.group) {
+            var group = [f];
+            var j = i + 1;
+            while (j < fields.length && fields[j].widget === "hour_minute" && fields[j].group === f.group) {
+              group.push(fields[j]);
+              j++;
+            }
+            _renderTimeGroup(container, group);
+            i = j;
+            continue;
+          }
+          _renderField(container, f);
+          i++;
+        }
+        _setDynamicFormDefaults(schema);
+      }
+
+      /** 为动态表单设置默认值（当天日期等） */
+      function _setDynamicFormDefaults(schema) {
+        if (!schema || !schema.fields) return;
         var d = new Date();
         var dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-        if (registrationDateEl && !registrationDateEl.value) registrationDateEl.value = dateStr;
-        if (powerOnHourEl) powerOnHourEl.value = "08";
-        if (powerOnMinuteEl) powerOnMinuteEl.value = "00";
-        if (powerOffHourEl) powerOffHourEl.value = "18";
-        if (powerOffMinuteEl) powerOffMinuteEl.value = "00";
+        schema.fields.forEach(function (f) {
+          if (f.type === "date") {
+            var el = document.getElementById("df_" + f.id);
+            if (el && !el.value) el.value = dateStr;
+          }
+        });
       }
-      function clearFormDataExceptDeviceCode() {
+
+      /** 获取某个动态字段的当前值 */
+      function _getFieldValue(f) {
+        if (f.widget === "hour_minute") {
+          var h = document.getElementById("df_" + f.id + "_hour");
+          var m = document.getElementById("df_" + f.id + "_minute");
+          return (h ? h.value : "") + ":" + (m ? m.value : "");
+        }
+        if (f.type === "radio") {
+          var sel = document.querySelector('input[name="df_' + f.id + '"]:checked');
+          return sel ? sel.value : "";
+        }
+        var el = document.getElementById("df_" + f.id);
+        return el ? (el.value || "").trim() : "";
+      }
+
+      /** 显示某个字段的内联错误 */
+      function _showFieldError(fieldId, groupName, msg) {
+        var fieldDiv = document.querySelector('[data-field-id="' + fieldId + '"]');
+        if (!fieldDiv && groupName) fieldDiv = document.querySelector('[data-field-id="' + groupName + '"]');
+        if (fieldDiv) {
+          fieldDiv.classList.add("has-error");
+          var errEl = fieldDiv.querySelector(".field-error");
+          if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; }
+        }
+      }
+
+      /** 清除所有内联错误 */
+      function _clearFieldErrors() {
+        document.querySelectorAll(".field-error").forEach(function (el) { el.style.display = "none"; el.textContent = ""; });
+        document.querySelectorAll(".field.has-error").forEach(function (el) { el.classList.remove("has-error"); });
+      }
+
+      /** 校验当前动态表单，返回错误提示或 null */
+      function validateDynamicForm(schema) {
+        _clearFieldErrors();
+        if (!schema || !schema.fields) return "表单未加载，请重新选择操作类型";
+        var firstErr = null;
+        for (var i = 0; i < schema.fields.length; i++) {
+          var f = schema.fields[i];
+          if (!f.required) continue;
+          var val = _getFieldValue(f);
+          if (!val || (typeof val === "string" && !val.trim())) {
+            if (!firstErr) firstErr = f;
+            _showFieldError(f.id, f.group, "请填写" + f.label);
+          }
+        }
+        if (firstErr) {
+          var el = document.querySelector('[data-field-id="' + firstErr.id + '"]')
+            || document.querySelector('[data-field-id="' + (firstErr.group || firstErr.id) + '"]');
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+          return "请完成必填项后提交";
+        }
+        return null;
+      }
+
+      /** 从 Schema 字段中提取 registration_date 的值 */
+      function _getRegDate(schema) {
+        if (!schema || !schema.fields) return "";
+        for (var i = 0; i < schema.fields.length; i++) {
+          if (schema.fields[i].id === "registration_date") {
+            var el = document.getElementById("df_registration_date");
+            return el ? el.value : "";
+          }
+        }
+        return "";
+      }
+
+      /**
+       * 根据 Schema 采集动态表单数据，构建提交 payload。
+       * 自动处理 time / datetime_local / hour_minute 等不同 widget 的值拼接。
+       */
+      function collectDynamicFormData(schema) {
+        var payload = {
+          device_code: device.device_code,
+          usage_type: parseInt(usageTypeEl.value, 10),
+          photo_urls: [],
+          source: "h5"
+        };
+        if (!schema || !schema.fields) return payload;
+        var regDate = _getRegDate(schema);
+        schema.fields.forEach(function (f) {
+          var val = _getFieldValue(f);
+          switch (f.id) {
+            case "registration_date":
+              payload.registration_date = val || null;
+              break;
+            case "start_time":
+              if (f.widget === "hour_minute") {
+                var h = document.getElementById("df_start_time_hour");
+                var m = document.getElementById("df_start_time_minute");
+                var ts = (h ? h.value : "08") + ":" + (m ? m.value : "00") + ":00";
+                payload.start_time = regDate ? regDate + "T" + ts : null;
+              } else {
+                payload.start_time = regDate && val ? regDate + "T" + val + ":00" : null;
+              }
+              break;
+            case "end_time":
+              if (f.widget === "hour_minute") {
+                var h2 = document.getElementById("df_end_time_hour");
+                var m2 = document.getElementById("df_end_time_minute");
+                var ts2 = (h2 ? h2.value : "18") + ":" + (m2 ? m2.value : "00") + ":00";
+                payload.end_time = regDate ? regDate + "T" + ts2 : null;
+              } else if (f.type === "date") {
+                payload.end_time = val ? val + "T00:00:00" : null;
+              } else if (f.type === "datetime_local") {
+                payload.end_time = val ? (val.length === 16 ? val + ":00" : val) : null;
+              } else {
+                payload.end_time = regDate && val ? regDate + "T" + val + ":00" : null;
+              }
+              break;
+            default:
+              payload[f.id] = (val !== null && val !== undefined && val !== "") ? (typeof val === "string" ? val.trim() : val) : null;
+              break;
+          }
+        });
+        // 借用/其他模板：若无显式 start_time，默认用 registration_date 零点
+        if (!payload.start_time && payload.registration_date) {
+          if (schema.template_key === "borrow" || schema.template_key === "other") {
+            payload.start_time = payload.registration_date + "T00:00:00";
+          }
+        }
+        return payload;
+      }
+
+      /** 从后端加载表单模板并动态渲染 */
+      function loadFormSchemaAndShowBlock(usageTypeCode, dept) {
+        var container = document.getElementById("dynamic-form-fields");
+        if (!usageTypeCode || !/^\d+$/.test(usageTypeCode)) {
+          currentFormSchema = null;
+          if (container) container.innerHTML = "";
+          return;
+        }
+        if (container) container.innerHTML = '<p style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 12px 0;">加载表单中...</p>';
+        var url = "/api/usage/form-schema?usage_type=" + encodeURIComponent(usageTypeCode);
+        if (dept) url += "&dept=" + encodeURIComponent(dept);
+        fetch(url)
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            currentFormSchema = data;
+            if (data && data.fields) {
+              renderDynamicForm(data);
+            } else {
+              if (container) container.innerHTML = "";
+            }
+          })
+          .catch(function () {
+            currentFormSchema = null;
+            if (container) container.innerHTML = '<p style="color: #dc2626; font-size: 14px; text-align: center; padding: 12px 0;">表单加载失败，请重新选择操作类型</p>';
+          });
+      }
+
+      /** 清空动态表单及操作类型选择 */
+      function clearDynamicForm() {
+        currentFormSchema = null;
+        var container = document.getElementById("dynamic-form-fields");
+        if (container) container.innerHTML = "";
         if (usageTypeEl) usageTypeEl.value = "";
-        if (registrationDateEl) registrationDateEl.value = "";
-        if (bedNumberEl) bedNumberEl.value = "";
-        if (idNumberEl) idNumberEl.value = "";
-        if (patientNameEl) patientNameEl.value = "";
-        if (powerOnHourEl) powerOnHourEl.value = "08";
-        if (powerOnMinuteEl) powerOnMinuteEl.value = "00";
-        if (powerOffHourEl) powerOffHourEl.value = "18";
-        if (powerOffMinuteEl) powerOffMinuteEl.value = "00";
-        if (terminalDisinfectionEl) terminalDisinfectionEl.value = "";
-        var radios = document.querySelectorAll("input[name='equipment_condition']");
-        if (radios.length) radios[0].checked = true;
-        radios = document.querySelectorAll("input[name='daily_maintenance']");
-        if (radios.length) radios[0].checked = true;
-        setDefaultDateAndTime();
+        _clearFieldErrors();
       }
 
       function setValidationInvalid() {
         device = null;
         successPanel.style.display = "none";
         showDeviceCodeError(DEVICE_CODE_ERROR_MSG);
-        clearFormDataExceptDeviceCode();
+        clearDynamicForm();
         deviceCodeInput.focus();
         submitBtn.disabled = true;
         formSection.style.display = "none";
@@ -860,8 +1117,10 @@
         deviceInfoEl.className = "device-info" + (isError ? " error" : "");
       }
       function updateQueryButtonState() {
-        var val = (deviceCodeInput && deviceCodeInput.value || "").trim();
-        if (btnQueryDevice) btnQueryDevice.disabled = !val;
+        var input = document.getElementById("device-code-input");
+        var btn = document.getElementById("btn-query-device");
+        var val = (input && input.value || "").trim();
+        if (btn) btn.disabled = !val;
       }
 
       function setDeviceLoaded(d) {
@@ -872,7 +1131,10 @@
         deviceInfoEl.className = "device-info";
         changeDeviceBtn.style.display = "block";
         formSection.style.display = "block";
-        setDefaultDateAndTime();
+        // 如果已经选了操作类型，刷新表单（设备信息可能影响科室模板）
+        if (usageTypeEl && usageTypeEl.value) {
+          loadFormSchemaAndShowBlock(usageTypeEl.value, d.dept);
+        }
         setValidationValid();
         updateQueryButtonState();
       }
@@ -882,6 +1144,7 @@
         deviceCodeInput.value = "";
         showDeviceCodeError("");
         successPanel.style.display = "none";
+        clearDynamicForm();
         deviceCodeInput.focus();
         deviceInfoEl.textContent = TIP_DEFAULT;
         deviceInfoEl.className = "device-info";
@@ -976,19 +1239,31 @@
           scanStream.getTracks().forEach(function (t) { t.stop(); });
           scanStream = null;
         }
-        scanVideo.srcObject = null;
-        scanOverlay.classList.remove("active");
-        scanErrorEl.style.display = "none";
+        var video = document.getElementById("scan-video");
+        var overlay = document.getElementById("scan-overlay");
+        var errEl = document.getElementById("scan-error");
+        if (video && video.srcObject) video.srcObject = null;
+        if (overlay) overlay.classList.remove("active");
+        if (errEl) errEl.style.display = "none";
       }
 
       function startScan() {
         if (device) return;
-        scanErrorEl.style.display = "none";
-        scanOverlay.classList.add("active");
-        var canvas = scanCanvas;
+        var overlay = document.getElementById("scan-overlay");
+        var video = document.getElementById("scan-video");
+        var canvas = document.getElementById("scan-canvas");
+        var errEl = document.getElementById("scan-error");
+        if (!overlay) return;
+        if (errEl) errEl.style.display = "none";
+        overlay.classList.add("active");
+        if (!video || !canvas) return;
         var ctx = canvas.getContext("2d");
-        var video = scanVideo;
+        if (!ctx) return;
 
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (errEl) { errEl.style.display = "block"; errEl.textContent = "当前浏览器不支持摄像头，请改用输入设备编号。"; }
+          return;
+        }
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
           .then(function (stream) {
             scanStream = stream;
@@ -996,7 +1271,8 @@
             video.setAttribute("playsinline", true);
             video.play();
             function tick() {
-              if (!scanOverlay.classList.contains("active")) return;
+              var ov = document.getElementById("scan-overlay");
+              if (!ov || !ov.classList.contains("active")) return;
               if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 canvas.height = video.videoHeight;
                 canvas.width = video.videoWidth;
@@ -1015,8 +1291,8 @@
             tick();
           })
           .catch(function (err) {
-            scanErrorEl.style.display = "block";
-            scanErrorEl.textContent = "无法使用摄像头，请允许相机权限或改用输入编号。";
+            var el = document.getElementById("scan-error");
+            if (el) { el.style.display = "block"; el.textContent = "无法使用摄像头，请允许相机权限或改用输入编号。"; }
           });
       }
 
@@ -1033,29 +1309,37 @@
         }
       }
 
-      fillTimeSelects();
-      loadUsageTypeOptions();
-      setDefaultDateAndTime();
+      try {
+        loadUsageTypeOptions();
+        if (deviceCodeInput) {
+          deviceCodeInput.addEventListener("input", updateQueryButtonState);
+          deviceCodeInput.addEventListener("keyup", updateQueryButtonState);
+          deviceCodeInput.addEventListener("change", updateQueryButtonState);
+          deviceCodeInput.addEventListener("paste", function () { setTimeout(updateQueryButtonState, 0); });
+          deviceCodeInput.addEventListener("blur", function () {
+            var trimmed = deviceCodeInput.value.trim();
+            if (!trimmed) { showDeviceCodeError(""); return; }
+            if (device && device.device_code === trimmed) return;
+            validateDeviceCodeOnBlur(trimmed);
+          });
+          deviceCodeInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { e.preventDefault(); if (!device) onQueryDevice(); }
+          });
+        }
+        updateQueryButtonState();
+        setTimeout(updateQueryButtonState, 200);
+      } catch (e) {
+        console.error("登记页初始化异常", e);
+      }
+      if (btnScan) btnScan.addEventListener("click", startScan);
+      if (scanCancel) scanCancel.addEventListener("click", stopScan);
+      if (changeDeviceBtn) changeDeviceBtn.addEventListener("click", function () { setDeviceCleared(); });
+      if (btnQueryDevice) btnQueryDevice.addEventListener("click", onQueryDevice);
 
-      deviceCodeInput.addEventListener("input", updateQueryButtonState);
-      deviceCodeInput.addEventListener("keyup", updateQueryButtonState);
-      deviceCodeInput.addEventListener("change", updateQueryButtonState);
-      deviceCodeInput.addEventListener("blur", function () {
-        var trimmed = deviceCodeInput.value.trim();
-        if (!trimmed) { showDeviceCodeError(""); return; }
-        if (device && device.device_code === trimmed) return;
-        validateDeviceCodeOnBlur(trimmed);
-      });
-      updateQueryButtonState();
-
-      btnScan.addEventListener("click", startScan);
-      scanCancel.addEventListener("click", stopScan);
-      changeDeviceBtn.addEventListener("click", function () { setDeviceCleared(); });
-      deviceCodeInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); if (!device) onQueryDevice(); }
-      });
-      btnQueryDevice.addEventListener("click", onQueryDevice);
-
+      /**
+       * 提交登记：校验 → 采集 → 提交 → 成功面板。
+       * 使用 Schema 驱动的动态校验与数据采集，无需硬编码模板逻辑。
+       */
       async function submitUsage() {
         if (!device) return;
         if (submitBtn.disabled) return;
@@ -1063,6 +1347,7 @@
         if (!usageTypeRaw) {
           statusEl.className = "status error";
           statusEl.textContent = "请选择操作类型";
+          if (usageTypeEl) usageTypeEl.focus();
           return;
         }
         if (!/^\d+$/.test(usageTypeRaw)) {
@@ -1070,35 +1355,24 @@
           statusEl.textContent = "操作类型不合法，请重新选择";
           return;
         }
-        var usageTypeInt = parseInt(usageTypeRaw, 10);
-        var bedNumber = (bedNumberEl && bedNumberEl.value) ? bedNumberEl.value.trim() : null;
-        var idNumber = (idNumberEl && idNumberEl.value) ? idNumberEl.value.trim() : null;
-        var regDate = registrationDateEl && registrationDateEl.value ? registrationDateEl.value : "";
-        var onTime = (powerOnHourEl && powerOnMinuteEl) ? (powerOnHourEl.value + ":" + powerOnMinuteEl.value) : "08:00";
-        var offTime = (powerOffHourEl && powerOffMinuteEl) ? (powerOffHourEl.value + ":" + powerOffMinuteEl.value) : "18:00";
-        var startTime = regDate && onTime ? regDate + "T" + onTime + ":00" : null;
-        var endTime = regDate && offTime ? regDate + "T" + offTime + ":00" : null;
-        var eqCond = (document.querySelector("input[name='equipment_condition']:checked") || {}).value || "normal";
-        var daily = (document.querySelector("input[name='daily_maintenance']:checked") || {}).value || "clean";
+        if (!currentFormSchema || !currentFormSchema.fields) {
+          statusEl.className = "status error";
+          statusEl.textContent = "请先选择操作类型以加载表单";
+          return;
+        }
+        // 动态校验
+        var errMsg = validateDynamicForm(currentFormSchema);
+        if (errMsg) {
+          statusEl.className = "status error";
+          statusEl.textContent = errMsg;
+          return;
+        }
+        // 动态采集
+        var payload = collectDynamicFormData(currentFormSchema);
         submitBtn.disabled = true;
         submitBtn.textContent = "提交中...";
         statusEl.textContent = "";
         statusEl.className = "status";
-        var payload = {
-          device_code: device.device_code,
-          usage_type: usageTypeInt,
-          registration_date: regDate || null,
-          bed_number: bedNumber || null,
-          id_number: idNumber || null,
-          patient_name: (patientNameEl && patientNameEl.value) ? patientNameEl.value.trim() : null,
-          start_time: startTime,
-          end_time: endTime,
-          equipment_condition: eqCond,
-          daily_maintenance: daily,
-          terminal_disinfection: (terminalDisinfectionEl && terminalDisinfectionEl.value) ? terminalDisinfectionEl.value.trim() : null,
-          photo_urls: [],
-          source: "h5",
-        };
         try {
           var res = await fetch("/api/usage", {
             method: "POST",
@@ -1110,10 +1384,10 @@
             var err = await res.json().catch(function () { return {}; });
             var msg = res.status === 401 ? "请先登录后登记" : (err.detail || "提交失败");
             if (res.status === 401 && (location.hostname === "localhost" || location.hostname === "127.0.0.1"))
-              msg += " 开发环境可 <a href=\"/admin\">前往后台登录</a> 后刷新本页。";
+              msg += ' 开发环境可 <a href="/admin">前往后台登录</a> 后刷新本页。';
             throw new Error(msg);
           }
-          clearFormDataExceptDeviceCode();
+          clearDynamicForm();
           statusEl.textContent = "";
           setDeviceCleared();
           successPanel.style.display = "block";
@@ -1131,13 +1405,16 @@
         }
       }
 
+      usageTypeEl.addEventListener("change", function () {
+        loadFormSchemaAndShowBlock(usageTypeEl.value, device ? device.dept : null);
+      });
+
       submitBtn.addEventListener("click", submitUsage);
       btnNextDevice.addEventListener("click", function () {
         successPanel.style.display = "none";
         deviceCodeInput.focus();
       });
 
-      setDefaultDateAndTime();
       if (deviceCodeFromUrl) loadDeviceByCode(deviceCodeFromUrl);
         else if (deviceIdFromUrl) loadDeviceById(deviceIdFromUrl);
     </script>

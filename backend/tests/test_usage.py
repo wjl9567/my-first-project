@@ -20,49 +20,45 @@ def test_usage_create_requires_auth(client: TestClient, created_device_code: str
 
 
 def test_usage_create_invalid_device(client: TestClient, admin_headers: dict):
-    """不存在的设备编号应返回 404。"""
+    """不存在的设备编号应返回 404（payload 需先通过模板必填校验）。"""
     r = client.post(
         "/api/usage",
         headers=admin_headers,
         json={
             "device_code": "NOT_EXIST_DEVICE_XYZ",
             "usage_type": 3,
-            "bed_number": "1",
-            "id_number": "ID001",
+            "registration_date": date.today().isoformat(),
+            "start_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_time": (datetime.now(timezone(timedelta(hours=8))) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+            "note": "测试故障描述",
         },
     )
     assert r.status_code == 404
 
 
 def test_usage_create_success(client: TestClient, admin_headers: dict, created_device_code: str):
-    """管理员登录后登记应成功，返回 201 及记录。"""
+    """管理员登录后登记应成功，返回 201 及记录（维修类型必填：登记日期、报修时间、故障描述）。"""
     r = client.post(
         "/api/usage",
         headers=admin_headers,
         json={
             "device_code": created_device_code,
             "usage_type": 3,
-            "bed_number": "1",
-            "id_number": "ID001",
-            "patient_name": "测试",
             "registration_date": date.today().isoformat(),
             "start_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%dT%H:%M:%S"),
             "end_time": (datetime.now(timezone(timedelta(hours=8))) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "equipment_condition": "normal",
-            "daily_maintenance": "clean",
+            "patient_name": "测试",
+            "note": "测试故障描述",
         },
     )
     assert r.status_code == 201
     data = r.json()
     assert data.get("device_code") == created_device_code
-    assert data.get("bed_number") == "1"
-    assert data.get("id_number") == "ID001"
-    assert data.get("equipment_condition") == "normal"
-    assert data.get("daily_maintenance") == "clean"
+    assert data.get("note") == "测试故障描述"
 
 
 def test_usage_create_without_bed_id_optional(client: TestClient, admin_headers: dict, created_device_code: str):
-    """床号、ID 号为选填：不传或传 null 时仍可提交成功，返回记录中为 null。"""
+    """维修类型必填仅为登记日期、报修时间、故障描述；不传床号/ID 仍可提交。"""
     r = client.post(
         "/api/usage",
         headers=admin_headers,
@@ -72,17 +68,13 @@ def test_usage_create_without_bed_id_optional(client: TestClient, admin_headers:
             "registration_date": date.today().isoformat(),
             "start_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%dT%H:%M:%S"),
             "end_time": (datetime.now(timezone(timedelta(hours=8))) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "equipment_condition": "abnormal",
-            "daily_maintenance": "disinfect",
+            "note": "故障描述内容",
         },
     )
     assert r.status_code == 201
     data = r.json()
     assert data.get("device_code") == created_device_code
-    assert data.get("bed_number") is None or data.get("bed_number") == ""
-    assert data.get("id_number") is None or data.get("id_number") == ""
-    assert data.get("equipment_condition") == "abnormal"
-    assert data.get("daily_maintenance") == "disinfect"
+    assert data.get("note") == "故障描述内容"
 
 
 def test_usage_list_requires_auth(client: TestClient):
@@ -132,11 +124,14 @@ def test_usage_undo_requires_auth(client: TestClient):
 
 def test_usage_duplicate_submit_idempotent(client: TestClient, admin_headers: dict, created_device_code: str):
     """短时间同一用户、同一设备重复提交：应返回同一条记录（防重复）。"""
+    base = datetime.now(timezone(timedelta(hours=8)))
     payload = {
         "device_code": created_device_code,
         "usage_type": 3,
-        "bed_number": "88",
-        "id_number": "ID88",
+        "registration_date": date.today().isoformat(),
+        "start_time": base.strftime("%Y-%m-%dT%H:%M:%S"),
+        "end_time": (base + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+        "note": "重复提交测试",
     }
     r1 = client.post("/api/usage", headers=admin_headers, json=payload)
     r2 = client.post("/api/usage", headers=admin_headers, json=payload)
@@ -147,15 +142,18 @@ def test_usage_duplicate_submit_idempotent(client: TestClient, admin_headers: di
 
 def test_usage_list_filter_by_bed(client: TestClient, admin_headers: dict, created_device_code: str):
     """按床号筛选列表。"""
-    # 先创建一条带床号的记录
+    base = datetime.now(timezone(timedelta(hours=8)))
     client.post(
         "/api/usage",
         headers=admin_headers,
         json={
             "device_code": created_device_code,
             "usage_type": 3,
+            "registration_date": date.today().isoformat(),
+            "start_time": base.strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_time": (base + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+            "note": "筛选测试",
             "bed_number": "99",
-            "id_number": "ID99",
         },
     )
     r = client.get("/api/usage", headers=admin_headers, params={"bed_number": "99", "limit": 10})
@@ -163,3 +161,29 @@ def test_usage_list_filter_by_bed(client: TestClient, admin_headers: dict, creat
     items = r.json()
     if items:
         assert any(u.get("bed_number") == "99" for u in items)
+
+
+def test_usage_form_schema(client: TestClient):
+    """GET /api/usage/form-schema 按操作类型返回差异化表单配置，无需登录。"""
+    r = client.get("/api/usage/form-schema", params={"usage_type": "1"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("template_key") == "normal"
+    assert "fields" in data
+    assert isinstance(data["fields"], list)
+    assert any(f.get("id") == "registration_date" for f in data["fields"])
+
+    r2 = client.get("/api/usage/form-schema", params={"usage_type": "2"})
+    assert r2.status_code == 200
+    assert r2.json().get("template_key") == "borrow"
+
+    r3 = client.get("/api/usage/form-schema", params={"usage_type": "3"})
+    assert r3.status_code == 200
+    assert r3.json().get("template_key") == "repair"
+
+    r4 = client.get("/api/usage/form-schema", params={"usage_type": "2", "dept": "心内科"})
+    assert r4.status_code == 200
+    assert "template_key" in r4.json()
+
+    r5 = client.get("/api/usage/form-schema", params={"usage_type": ""})
+    assert r5.status_code == 400

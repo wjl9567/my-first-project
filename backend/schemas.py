@@ -167,8 +167,10 @@ class UsageRecordRead(UsageRecordBase):
     device_name: Optional[str] = None
     created_at: datetime
     is_deleted: bool = False
+    returned_at: Optional[datetime] = None
+    repair_completed_at: Optional[datetime] = None
 
-    @field_serializer("created_at", "start_time", "end_time")
+    @field_serializer("created_at", "start_time", "end_time", "returned_at", "repair_completed_at")
     @classmethod
     def _ser_datetime(cls, v: datetime | None) -> str | None:
         return datetime_to_iso_utc(v)

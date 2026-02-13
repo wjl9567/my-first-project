@@ -724,6 +724,18 @@
               <div class="label">使用记录条数</div>
               <div class="value" id="stat-usage-count">—</div>
             </div>
+            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+              <div class="label">今日登记</div>
+              <div class="value" id="stat-usage-today">—</div>
+            </div>
+            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+              <div class="label">本周登记</div>
+              <div class="value" id="stat-usage-week">—</div>
+            </div>
+            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+              <div class="label">本月登记</div>
+              <div class="value" id="stat-usage-month">—</div>
+            </div>
           </div>
           <div class="card">
             <h3>快捷操作</h3>
@@ -750,6 +762,7 @@
               <button type="button" id="btn-device-reset" class="secondary">清空筛选</button>
               <span class="device-actions-group">
                 <button id="btn-add">新增设备</button>
+                <button type="button" id="btn-device-import" class="secondary">批量导入</button>
                 <button type="button" id="btn-device-export-csv" class="secondary">导出 CSV</button>
                 <button type="button" id="btn-device-export-xlsx" class="secondary">导出 Excel</button>
               </span>
@@ -786,6 +799,25 @@
               <div class="device-qr-modal-box">
                 <img id="device-qr-modal-img" src="" alt="设备二维码" />
                 <button type="button" id="device-qr-modal-close" class="secondary">关闭</button>
+              </div>
+            </div>
+            <div id="device-import-modal" class="user-pw-modal" role="dialog" aria-modal="true" aria-label="批量导入" style="display:none;">
+              <div class="user-pw-modal-backdrop"></div>
+              <div class="user-pw-modal-box">
+                <h3 style="margin:0;">批量导入设备</h3>
+                <p class="mb" style="margin:8px 0 16px; color:var(--text-muted); font-size:14px;">请先下载模板，按表头填写后上传 .xlsx 文件。设备编号重复将自动跳过。</p>
+                <div class="form-row mb">
+                  <button type="button" id="device-import-download-tpl" class="secondary">下载模板</button>
+                </div>
+                <div class="form-row mb">
+                  <label style="width:80px;">选择文件</label>
+                  <input type="file" id="device-import-file" accept=".xlsx,.xls" />
+                </div>
+                <div class="msg" id="device-import-msg"></div>
+                <div class="flex" style="gap:12px; margin-top:16px;">
+                  <button type="button" id="device-import-submit">上传并导入</button>
+                  <button type="button" id="device-import-cancel" class="secondary">取消</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1226,33 +1258,20 @@
 
       async function loadDashboardStats() {
         try {
-          const [devTotalRes, devActiveRes, devInactiveRes, devDeletedRes, userCountRes, usageCountRes] = await Promise.all([
-            fetch("/api/devices/count?include_inactive=1", { headers: authHeaders() }),
-            fetch("/api/devices/count?include_inactive=0", { headers: authHeaders() }),
-            fetch("/api/devices/count?inactive_only=1", { headers: authHeaders() }),
-            fetch("/api/devices/count?deleted_only=1", { headers: authHeaders() }),
-            fetch("/api/users/count", { headers: authHeaders() }),
-            fetch("/api/usage/count", { headers: authHeaders() })
-          ]);
-          var devTotal = devTotalRes.ok ? (await devTotalRes.json()).total : 0;
-          var devActive = devActiveRes.ok ? (await devActiveRes.json()).total : 0;
-          var devInactive = devInactiveRes.ok ? (await devInactiveRes.json()).total : 0;
-          var devDeleted = devDeletedRes.ok ? (await devDeletedRes.json()).total : 0;
-          var userTotal = userCountRes.ok ? (await userCountRes.json()).total : 0;
-          var usageTotal = usageCountRes.ok ? (await usageCountRes.json()).total : 0;
-          document.getElementById("stat-device-count").textContent = devTotal;
-          document.getElementById("stat-active-count").textContent = devActive;
-          document.getElementById("stat-inactive-count").textContent = devInactive;
-          document.getElementById("stat-deleted-count").textContent = devDeleted;
-          document.getElementById("stat-user-count").textContent = userTotal;
-          document.getElementById("stat-usage-count").textContent = usageTotal;
+          var res = await fetch("/api/dashboard/stats", { headers: authHeaders() });
+          if (!res.ok) throw new Error("加载失败");
+          var s = await res.json();
+          document.getElementById("stat-device-count").textContent = s.devices_total != null ? s.devices_total : "—";
+          document.getElementById("stat-active-count").textContent = s.devices_active != null ? s.devices_active : "—";
+          document.getElementById("stat-inactive-count").textContent = s.devices_inactive != null ? s.devices_inactive : "—";
+          document.getElementById("stat-deleted-count").textContent = s.devices_deleted != null ? s.devices_deleted : "—";
+          document.getElementById("stat-user-count").textContent = s.users_total != null ? s.users_total : "—";
+          document.getElementById("stat-usage-count").textContent = s.usage_total != null ? s.usage_total : "—";
+          document.getElementById("stat-usage-today").textContent = s.usage_today != null ? s.usage_today : "—";
+          document.getElementById("stat-usage-week").textContent = s.usage_week != null ? s.usage_week : "—";
+          document.getElementById("stat-usage-month").textContent = s.usage_month != null ? s.usage_month : "—";
         } catch (e) {
-          document.getElementById("stat-device-count").textContent = "—";
-          document.getElementById("stat-active-count").textContent = "—";
-          document.getElementById("stat-inactive-count").textContent = "—";
-          document.getElementById("stat-deleted-count").textContent = "—";
-          document.getElementById("stat-user-count").textContent = "—";
-          document.getElementById("stat-usage-count").textContent = "—";
+          ["stat-device-count","stat-active-count","stat-inactive-count","stat-deleted-count","stat-user-count","stat-usage-count","stat-usage-today","stat-usage-week","stat-usage-month"].forEach(function(id){ var el = document.getElementById(id); if(el) el.textContent = "—"; });
         }
       }
 
@@ -1514,6 +1533,58 @@
       }
       document.getElementById("btn-device-export-csv").onclick = function () { doDeviceExport("csv"); };
       document.getElementById("btn-device-export-xlsx").onclick = function () { doDeviceExport("xlsx"); };
+      (function () {
+        var importModal = document.getElementById("device-import-modal");
+        var importFile = document.getElementById("device-import-file");
+        var importMsg = document.getElementById("device-import-msg");
+        var btnImport = document.getElementById("btn-device-import");
+        var btnImportCancel = document.getElementById("device-import-cancel");
+        var btnImportSubmit = document.getElementById("device-import-submit");
+        var btnDownloadTpl = document.getElementById("device-import-download-tpl");
+        if (btnImport) btnImport.onclick = function () {
+          if (importModal) importModal.style.display = "flex";
+          if (importMsg) { importMsg.textContent = ""; importMsg.className = "msg"; }
+          if (importFile) importFile.value = "";
+        };
+        if (btnImportCancel) btnImportCancel.onclick = function () { if (importModal) importModal.style.display = "none"; };
+        var importBackdrop = importModal ? importModal.querySelector(".user-pw-modal-backdrop") : null;
+        if (importBackdrop) importBackdrop.onclick = function () { if (importModal) importModal.style.display = "none"; };
+        if (btnDownloadTpl) btnDownloadTpl.onclick = function () {
+          fetch("/api/devices/import-template", { headers: authHeaders() })
+            .then(function (r) { return r.ok ? r.blob() : Promise.reject(new Error("下载失败")); })
+            .then(function (blob) {
+              var a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "devices_import_template.xlsx";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            })
+            .catch(function () { alert("下载模板失败，请检查登录状态"); });
+        };
+        if (btnImportSubmit) btnImportSubmit.onclick = function () {
+          if (!importFile || !importFile.files || !importFile.files[0]) { alert("请选择要上传的 Excel 文件"); return; }
+          var fd = new FormData();
+          fd.append("file", importFile.files[0]);
+          btnImportSubmit.disabled = true;
+          if (importMsg) { importMsg.textContent = "导入中..."; importMsg.className = "msg"; }
+          fetch("/api/devices/import", { method: "POST", headers: authHeaders(), body: fd })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+              btnImportSubmit.disabled = false;
+              if (!res.ok) {
+                if (importMsg) { importMsg.textContent = res.data.detail || "导入失败"; importMsg.className = "msg err"; }
+                return;
+              }
+              var d = res.data;
+              var lines = ["成功导入 " + (d.created || 0) + " 条，跳过 " + (d.skipped || 0) + " 条."];
+              if (d.errors && d.errors.length) lines.push(d.errors.slice(0, 5).join(" "));
+              if (d.errors && d.errors.length > 5) lines.push("… 共 " + d.errors.length + " 条提示");
+              if (importMsg) { importMsg.innerHTML = lines.join("<br>"); importMsg.className = "msg ok"; }
+              loadDevices(); if (typeof loadDashboardStats === "function") loadDashboardStats();
+            })
+            .catch(function () { btnImportSubmit.disabled = false; if (importMsg) { importMsg.textContent = "网络异常"; importMsg.className = "msg err"; } });
+        };
+      })();
 
       function trFromBtn(btn) {
         let el = btn;
@@ -1909,6 +1980,13 @@
       if (userAddCancel) userAddCancel.onclick = closeUserAddModal;
       if (userAddBackdrop) userAddBackdrop.onclick = closeUserAddModal;
       if (userAddSubmit) userAddSubmit.onclick = submitUserAdd;
+      function userAddKeyHandler(e) {
+        if (e.key === "Escape") { e.preventDefault(); closeUserAddModal(); }
+        if (e.key === "Enter") { e.preventDefault(); submitUserAdd(); }
+      }
+      [userAddUsername, userAddPassword, userAddRealname, userAddRole, userAddDept].forEach(function (el) {
+        if (el) el.addEventListener("keydown", userAddKeyHandler);
+      });
       function userPwKeyHandler(e) {
         if (e.key === "Escape") { e.preventDefault(); closeUserPwModal(); }
         if (e.key === "Enter") { e.preventDefault(); submitUserPw(); }

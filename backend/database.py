@@ -21,7 +21,12 @@ def get_database_url() -> str:
     return url
 
 
-engine = create_engine(get_database_url(), echo=False, future=True)
+engine = create_engine(
+    get_database_url(),
+    echo=False,
+    future=True,
+    pool_pre_ping=True,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
