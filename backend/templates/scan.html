@@ -1383,8 +1383,14 @@
             if (res.status === 401) try { localStorage.removeItem("device_scan_token"); } catch (e) {}
             var err = await res.json().catch(function () { return {}; });
             var msg = res.status === 401 ? "请先登录后登记" : (err.detail || "提交失败");
-            if (res.status === 401 && (location.hostname === "localhost" || location.hostname === "127.0.0.1"))
-              msg += ' 开发环境可 <a href="/admin">前往后台登录</a> 后刷新本页。';
+            if (res.status === 401) {
+              var nextPath = location.pathname + (location.search || "");
+              var wecomUrl = "/api/auth/wecom/login?next_path=" + encodeURIComponent(nextPath);
+              if (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+                msg += ' 开发环境可 <a href="/admin">前往后台登录</a> 后刷新本页。';
+              else
+                msg += ' 请 <a href="' + wecomUrl + '">企业微信登录</a> 后重新提交。';
+            }
             throw new Error(msg);
           }
           clearDynamicForm();

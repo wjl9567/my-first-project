@@ -232,6 +232,20 @@
       .stat-card .value { font-size: 24px; font-weight: 600; color: var(--primary-dark); }
       .stat-card-clickable { cursor: pointer; transition: box-shadow 0.2s, background 0.2s; }
       .stat-card-clickable:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); background: var(--bg-elevated); }
+      .dashboard-registration-section {
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+      .dashboard-registration-section .section-title {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+        font-weight: 500;
+      }
+      .dashboard-registration-section .stat-cards .stat-card {
+        min-width: 140px;
+      }
       .dict-table { min-width: 520px; border-collapse: collapse; width: 100%; }
       .dict-table td:first-child { font-weight: 500; color: var(--text); }
       .dict-table th, .dict-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
@@ -724,17 +738,22 @@
               <div class="label">使用记录条数</div>
               <div class="value" id="stat-usage-count">—</div>
             </div>
-            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
-              <div class="label">今日登记</div>
-              <div class="value" id="stat-usage-today">—</div>
-            </div>
-            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
-              <div class="label">本周登记</div>
-              <div class="value" id="stat-usage-week">—</div>
-            </div>
-            <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
-              <div class="label">本月登记</div>
-              <div class="value" id="stat-usage-month">—</div>
+          </div>
+          <div class="dashboard-registration-section">
+            <div class="section-title">登记量统计</div>
+            <div class="stat-cards">
+              <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+                <div class="label">今日登记</div>
+                <div class="value" id="stat-usage-today">—</div>
+              </div>
+              <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+                <div class="label">本周登记</div>
+                <div class="value" id="stat-usage-week">—</div>
+              </div>
+              <div class="stat-card stat-card-clickable" data-panel="usage" data-device-filter="">
+                <div class="label">本月登记</div>
+                <div class="value" id="stat-usage-month">—</div>
+              </div>
             </div>
           </div>
           <div class="card">
@@ -936,7 +955,7 @@
               <div class="usage-table-wrap" id="usage-table-wrap" role="region" aria-label="使用记录表格，可左右滑动查看全部列">
                 <table id="table-usage" class="resizable-cols">
                   <thead>
-                    <tr id="usage-thead-row"><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>维护人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
+                    <tr id="usage-thead-row"><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>登记人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
                   </thead>
                   <tbody id="usage-list"></tbody>
                 </table>
@@ -2070,7 +2089,7 @@
           { label: "姓名", required: false },
           { label: "开机", required: false },
           { label: "关机", required: false },
-          { label: "维护人", required: false },
+          { label: "登记人", required: false },
           { label: "类型", required: true },
           { label: "设备状况", required: false },
           { label: "日常保养", required: false },
@@ -2105,7 +2124,10 @@
             cellVal(r.patient_name, r.patient_name),
             cellVal(r.start_time ? new Date(r.start_time).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null, timeOnlyStr(r.start_time)),
             cellVal(r.end_time ? new Date(r.end_time).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null, timeOnlyStr(r.end_time)),
-            cellVal(r.user_name || r.user_id, r.user_name ?? r.user_id ?? null),
+            cellVal(
+              (r.user_name || r.user_id) + (r.wecom_userid ? " · " + r.wecom_userid : ""),
+              r.user_name ?? r.user_id ?? null
+            ),
             cellVal(usageTypeLabel(r.usage_type), usageTypeLabel(r.usage_type)),
             cellVal(eqCondStr(r.equipment_condition), eqCondStr(r.equipment_condition)),
             cellVal(dailyStr(r.daily_maintenance), dailyStr(r.daily_maintenance)),

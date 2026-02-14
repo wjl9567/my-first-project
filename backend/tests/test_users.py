@@ -203,3 +203,37 @@ def test_create_user_duplicate_username_400(client: TestClient, admin_headers: d
     finally:
         db.delete(u)
         db.commit()
+
+
+def test_device_admin_cannot_create_admin_role(client: TestClient, db):
+    """设备管理员仅可创建普通用户，创建 device_admin/sys_admin 时返回 403。"""
+    from backend import models
+    from backend.auth import hash_password
+
+    username = f"test_da_{uuid.uuid4().hex[:12]}"
+    u = models.User(
+        wx_userid=None,
+        username=username,
+        real_name="设备管理员",
+        role="device_admin",
+        password_hash=hash_password("pass1234"),
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    try:
+        r_login = client.post("/api/auth/login", json={"username": username, "password": "pass1234"})
+        assert r_login.status_code == 200
+        token = r_login.json().get("access_token")
+        headers = {"Authorization": "Bearer " + token} if token else {}
+        r = client.post(
+            "/api/users",
+            headers=headers,
+            json={"username": "newadmin", "password": "pass1234", "real_name": "新管", "role": "sys_admin"},
+        )
+        assert r.status_code == 403
+        assert "仅可创建普通用户" in (r.json().get("detail") or "")
+    finally:
+        db.query(models.AuditLog).filter(models.AuditLog.actor_id == u.id).delete()
+        db.delete(u)
+        db.commit()

@@ -28,10 +28,10 @@ from .form_templates import (
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
 
-# 导出表头：含维护登记扩展列（登记日期、实际登记时间、设备、床号、开机/关机、维护人、设备状况等）
+# 导出表头：登记人 = 提交登记的用户（姓名 + 企业微信 userid 便于与企微通讯录对照）
 EXPORT_HEADERS = [
     "登记日期", "实际登记时间", "设备", "床号", "ID号", "姓名", "开机时间", "关机时间",
-    "维护人", "使用类型", "设备状况", "日常保养", "终末消毒", "备注",
+    "登记人", "企业微信userid", "使用类型", "设备状况", "日常保养", "终末消毒", "备注",
 ]
 
 # 导出日期时间格式：中国时区展示（YYYY-MM-DD HH:mm:ss）
@@ -81,6 +81,7 @@ def _record_to_row(r: models.UsageRecord, usage_type_label_map: Optional[dict] =
         daily = "清洁"
     elif daily == "disinfect":
         daily = "消毒"
+    wecom_id = (getattr(user, "wx_userid", None) or "") if user else ""
     return [
         reg_date_str,
         _format_display_datetime(getattr(r, "created_at", None) or r.start_time),
@@ -91,6 +92,7 @@ def _record_to_row(r: models.UsageRecord, usage_type_label_map: Optional[dict] =
         _format_display_datetime(r.start_time),
         _format_display_datetime(end_time),
         user.real_name if user else "",
+        wecom_id,
         usage_type_str,
         eq_cond,
         daily,
@@ -490,6 +492,7 @@ def list_usage_records(
             update={
                 "device_name": r.device.name if r.device else None,
                 "user_name": r.user.real_name if r.user else None,
+                "wecom_userid": getattr(r.user, "wx_userid", None) if r.user else None,
                 "is_deleted": getattr(r, "is_deleted", False),
             }
         )

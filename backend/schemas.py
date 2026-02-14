@@ -163,7 +163,8 @@ class UsageRecordCreate(UsageRecordBase):
 class UsageRecordRead(UsageRecordBase):
     id: int
     user_id: int
-    user_name: Optional[str] = None
+    user_name: Optional[str] = None  # 登记人姓名（users.real_name）
+    wecom_userid: Optional[str] = None  # 企业微信 userid，便于与企微通讯录对照
     device_name: Optional[str] = None
     created_at: datetime
     is_deleted: bool = False

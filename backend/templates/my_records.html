@@ -211,6 +211,12 @@
         border-radius: 6px;
         margin-top: 8px;
       }
+      .record-card .tag-terminal.terminal-full {
+        display: block;
+        max-width: 100%;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
       .record-card .tag-terminal.done { background: #ccfbf1; color: #0f766e; font-weight: 500; }
       .record-card .tag-terminal.pending { background: #f1f5f9; color: #64748b; }
       .record-card .note {
@@ -560,9 +566,9 @@
           var extraHtml = extraParts.length ? "<div class=\"extra\">" + extraParts.join(" · ") + "</div>" : "";
           var eqStatusText = eqCond ? "设备状况：" + eqCond : (daily ? "日常保养：" + daily : "");
           var statusLine = eqStatusText ? "<div class=\"device-status\">" + escapeHtml(eqStatusText) + "</div>" : "";
-          var terminalVal = r.terminal_disinfection ? (r.terminal_disinfection.length > 30 ? r.terminal_disinfection.slice(0, 30) + "…" : r.terminal_disinfection) : "";
+          var terminalVal = r.terminal_disinfection ? String(r.terminal_disinfection) : "";
           var terminalTagClassVal = terminalTagClass(r.terminal_disinfection);
-          var terminalHtml = terminalVal ? "<span class=\"tag-terminal " + terminalTagClassVal + "\">终末消毒：" + escapeHtml(terminalVal) + "</span>" : "";
+          var terminalHtml = terminalVal ? "<span class=\"tag-terminal terminal-full " + terminalTagClassVal + "\">终末消毒：" + escapeHtml(terminalVal) + "</span>" : "";
           var canUndo = canUndoRecord(r);
           var undoBtnClass = canUndo ? "btn-undo enabled" : "btn-undo";
           var undoBtnDisabled = canUndo ? "" : " disabled";
