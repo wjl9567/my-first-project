@@ -7,3 +7,5 @@ nginx/ssl/*.key
 *.db
 __pycache__/
 *.pyc
+# 本地提交信息临时文件（勿提交）
+commit_msg.txt
