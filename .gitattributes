@@ -1,0 +1,11 @@
+# 文本与文档统一为 UTF-8、换行 LF，避免 GitHub 显示乱码
+* text=auto eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.txt text eol=lf
