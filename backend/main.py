@@ -46,18 +46,32 @@ def create_app() -> FastAPI:
                 pass
     except Exception:
         _logger.exception("users.is_active 自动迁移失败（请检查数据库权限或手工执行迁移）")
-    # 轻量自迁移：usage_records 增加 returned_at、repair_completed_at（借用/维修闭环）
+    # 轻量自迁移：已有表缺列时自动 ADD COLUMN（部署到生产时无需手写 SQL）
+    # 格式: (表名, 列名, 类型表达式)，列已存在则忽略
+    _add_columns = [
+        ("usage_records", "returned_at", "TIMESTAMP"),
+        ("usage_records", "repair_completed_at", "TIMESTAMP"),
+        ("usage_records", "registration_date", "DATE"),
+        ("usage_records", "is_deleted", "BOOLEAN DEFAULT FALSE"),
+        ("usage_records", "photo_urls", "TEXT"),
+        ("usage_records", "terminal_disinfection", "TEXT"),
+        ("devices", "is_deleted", "BOOLEAN DEFAULT FALSE"),
+    ]
     try:
         from sqlalchemy import text
-        for col in ("returned_at", "repair_completed_at"):
-            try:
-                with engine.connect() as conn:
-                    conn.execute(text(f"ALTER TABLE usage_records ADD COLUMN {col} TIMESTAMP"))
+        with engine.connect() as conn:
+            for table, col, type_sql in _add_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {type_sql}"))
                     conn.commit()
-            except Exception:
-                pass  # 列已存在或数据库不支持则忽略
+                except Exception as e:
+                    err = str(e).lower()
+                    if "duplicate column" in err or "already exists" in err:
+                        pass
+                    else:
+                        _logger.warning("自迁移 %s.%s 跳过: %s", table, col, e)
     except Exception:
-        _logger.exception("usage_records.returned_at/repair_completed_at 自动迁移失败")
+        _logger.exception("轻量自迁移失败（请检查数据库权限或手工执行迁移）")
     # 字典表为空时写入初始数据
     from .database import SessionLocal
     try:
