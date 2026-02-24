@@ -678,10 +678,16 @@
       })();
       (function () {
         try {
-          if (!localStorage.getItem("device_scan_token") && (location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+          var hasToken = !!localStorage.getItem("device_scan_token");
+          if (hasToken) return;
+          var isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+          if (isLocal) {
             var h = document.getElementById("dev-login-hint");
             if (h) h.style.display = "block";
+            return;
           }
+          var nextPath = location.pathname + (location.search || "");
+          location.replace("/api/auth/wecom/login?next_path=" + encodeURIComponent(nextPath));
         } catch (e) {}
       })();
       function authHeaders() {

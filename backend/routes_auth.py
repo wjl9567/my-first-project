@@ -2,6 +2,7 @@
 from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from . import models
@@ -24,6 +25,31 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 WECOM_OAUTH_AUTHORIZE = "https://open.weixin.qq.com/connect/oauth2/authorize"
 
 
+def _wecom_not_configured_html(next_path: str = "/h5/scan") -> HTMLResponse:
+    """未配置企业微信时返回友好 HTML 页，避免浏览器直接展示 JSON 乱码。"""
+    html = (
+        "<!DOCTYPE html><html lang=\"zh-CN\"><head>"
+        "<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>登录提示</title>"
+        "<style>body{font-family:\"PingFang SC\",\"Microsoft YaHei\",sans-serif;margin:0;padding:24px;background:#f0fdfa;} "
+        ".box{max-width:360px;margin:40px auto;background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06);} "
+        "h1{font-size:18px;color:#0f766e;margin:0 0 12px;} p{color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;} "
+        "a{color:#0d9488;text-decoration:none;} a:hover{text-decoration:underline;} "
+        ".links{margin-top:20px;} .links a{display:inline-block;margin-right:12px;margin-bottom:8px;}</style></head><body>"
+        "<div class=\"box\">"
+        "<h1>未配置企业微信</h1>"
+        "<p>系统未配置企业微信（WECOM_CORP_ID / WECOM_AGENT_ID），请联系管理员在服务器环境变量中配置后再使用企业微信登录。</p>"
+        "<p><strong>常见情况：</strong>通过企业微信工作台进入 → 点击「设备登记」入口 → 再点击「我的记录」时报错，即属于未配置或未正确配置企业微信应用。请将本页截图发给管理员，并说明需配置 WECOM_CORP_ID、WECOM_AGENT_ID（及 WECOM_SECRET）。</p>"
+        "<p>您可先使用以下页面：</p>"
+        "<div class=\"links\">"
+        "<a href=\"/h5/scan\">设备使用维护登记</a>"
+        "<a href=\"/h5/my-records\">我的记录</a>"
+        "</div>"
+        "</div></body></html>"
+    )
+    return HTMLResponse(content=html, status_code=503, headers={"Content-Type": "text/html; charset=utf-8"})
+
+
 @router.get("/wecom/login")
 def wecom_login(
     request: Request,
@@ -31,12 +57,10 @@ def wecom_login(
 ):
     """
     重定向到企业微信授权页。企业微信授权后会带着 code 回调到 /api/auth/wecom/callback。
+    未配置企微时返回友好 HTML 页，避免出现 JSON detail 乱码。
     """
     if not settings.WECOM_CORP_ID or not settings.WECOM_AGENT_ID:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="未配置企业微信（WECOM_CORP_ID / WECOM_AGENT_ID）",
-        )
+        return _wecom_not_configured_html(next_path)
     redirect_uri = f"{settings.BASE_URL.rstrip('/')}/api/auth/wecom/callback"
     state = quote(next_path)
     params = {
@@ -48,7 +72,6 @@ def wecom_login(
         "agentid": settings.WECOM_AGENT_ID,
     }
     url = f"{WECOM_OAUTH_AUTHORIZE}?{urlencode(params)}#wechat_redirect"
-    from fastapi.responses import RedirectResponse
     return RedirectResponse(url=url, status_code=302)
 
 

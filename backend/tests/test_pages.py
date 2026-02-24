@@ -40,3 +40,47 @@ def test_admin_page(client: TestClient):
     r = client.get("/admin")
     assert r.status_code == 200
     assert "text/html" in r.headers.get("content-type", "")
+
+
+# ---------- 扫码相关（今日交付：对准/放大/多档解码、文案、无兜底） ----------
+
+
+def test_scan_page_step_copy(client: TestClient):
+    """登记页步骤文案为：扫一扫（资产二维码）或输入设备编号 -> 填写登记信息 -> 提交。"""
+    r = client.get("/h5/scan")
+    assert r.status_code == 200
+    text = r.content.decode("utf-8", errors="replace")
+    assert "扫一扫（资产二维码）或输入设备编号" in text
+    assert "填写登记信息" in text
+    assert "提交" in text
+
+
+def test_scan_page_zoom_and_dual_decode(client: TestClient):
+    """扫一扫逻辑：多档放大(zoomLevels)、tryDecodeAtZoom、每帧双档解码、jsQR。"""
+    r = client.get("/h5/scan")
+    assert r.status_code == 200
+    text = r.content.decode("utf-8", errors="replace")
+    assert "zoomLevels" in text
+    assert "tryDecodeAtZoom" in text
+    assert "scanZoom" in text
+    assert "jsQR" in text
+    assert "ZOOM_STEP_FRAMES" in text
+    assert "nextZoomIndex" in text
+
+
+def test_scan_page_no_fallback_ui(client: TestClient):
+    """不展示兜底引导：无「从相册选择」、无「若无法识别请手动输入资产编号」。"""
+    r = client.get("/h5/scan")
+    assert r.status_code == 200
+    text = r.content.decode("utf-8", errors="replace")
+    assert "从相册选择" not in text
+    assert "若无法识别请手动输入资产编号" not in text
+    assert "scan-file-input" not in text
+
+
+def test_scan_page_version_in_template(client: TestClient):
+    """登记页通过 app_version 显示版本（由 main 注入，此处仅校验占位存在）。"""
+    r = client.get("/h5/scan")
+    assert r.status_code == 200
+    text = r.content.decode("utf-8", errors="replace")
+    assert "app_version" in text or "版本" in text

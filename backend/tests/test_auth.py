@@ -52,3 +52,18 @@ def test_me_success(client: TestClient, admin_headers: dict):
     assert "id" in data
     assert "role" in data
     assert data["role"] in ("sys_admin", "device_admin", "user")
+
+
+def test_wecom_login_when_not_configured(client: TestClient):
+    """未配置企业微信时 GET /api/auth/wecom/login 应返回 503 且为友好 HTML（避免 JSON 乱码）。"""
+    r = client.get("/api/auth/wecom/login", params={"next_path": "/h5/my-records"})
+    if r.status_code == 503:
+        ct = r.headers.get("content-type", "")
+        assert "text/html" in ct
+        assert "utf-8" in ct.lower() or "charset" in ct.lower()
+        text = r.content.decode("utf-8", errors="replace")
+        assert "未配置企业微信" in text
+        assert "WECOM_CORP_ID" in text or "企业微信" in text
+        assert "/h5/scan" in text or "设备" in text
+    else:
+        assert r.status_code == 302, "若已配置企微则应为重定向"
