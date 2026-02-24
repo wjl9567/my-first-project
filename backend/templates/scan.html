@@ -585,7 +585,7 @@
   <body>
     <div class="page-header">
       <h1>设备使用维护登记</h1>
-      <p class="sub"><span class="step-current">扫一扫（支持完整链接或纯资产编号）或输入设备编号</span><span class="step-next"> → 填写登记信息 → 提交</span></p>
+      <p class="sub"><span class="step-current">扫一扫（资产二维码）或输入设备编号</span><span class="step-next"> → 填写登记信息 → 提交</span></p>
     </div>
     <div id="dev-login-hint" class="dev-login-hint" style="display:none;">
       开发环境：请先在 <a href="/admin">后台</a> 使用管理员账号登录（需在 backend 目录 .env 中配置 ADMIN_USERNAME、ADMIN_PASSWORD），同一浏览器再刷新本页即可登记。
@@ -1287,52 +1287,73 @@
           if (errEl) { errEl.style.display = "block"; errEl.textContent = "当前浏览器不支持摄像头，请改用输入设备编号。"; }
           return;
         }
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        })
           .then(function (stream) {
             scanStream = stream;
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
-            var scanZoom = 1.5;
+            var zoomLevels = [1.5, 2, 2.5];
+            var zoomIndex = 0;
+            var scanZoom = zoomLevels[zoomIndex];
             var scanNoDecodeCount = 0;
             var ZOOM_STEP_FRAMES = 28;
             var hintEl = document.getElementById("scan-hint");
             function setZoomHint(z) {
               if (!hintEl) return;
-              if (z >= 2) hintEl.textContent = "已放大至 2 倍，请保持稳定对准框内";
-              else if (z >= 1.5) hintEl.textContent = "请将小码对准框内中心（已针对小码优化）";
-              else hintEl.textContent = "将设备二维码或资产标签放入框内，支持完整链接或纯编号（资产编号）";
+              if (z >= 2.5) hintEl.textContent = "已 2.5 倍放大，请将二维码对准框内中心";
+              else if (z >= 2) hintEl.textContent = "已 2 倍放大，请将二维码对准框内中心";
+              else if (z >= 1.5) hintEl.textContent = "请将二维码对准框内中心，未识别将自动放大";
+              else hintEl.textContent = "将设备二维码或资产标签放入框内";
             }
             setZoomHint(scanZoom);
+            function tryDecodeAtZoom(z) {
+              if (typeof jsQR === "undefined") return null;
+              var vW = video.videoWidth;
+              var vH = video.videoHeight;
+              canvas.width = vW;
+              canvas.height = vH;
+              if (z > 1) {
+                var sw = vW / z;
+                var sh = vH / z;
+                var sx = (vW - sw) / 2;
+                var sy = (vH - sh) / 2;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, vW, vH);
+              } else {
+                ctx.drawImage(video, 0, 0, vW, vH, 0, 0, vW, vH);
+              }
+              var imageData = ctx.getImageData(0, 0, vW, vH);
+              return jsQR(imageData.data, imageData.width, imageData.height);
+            }
             function tick() {
               var ov = document.getElementById("scan-overlay");
               if (!ov || !ov.classList.contains("active")) return;
               if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                var vW = video.videoWidth;
-                var vH = video.videoHeight;
-                canvas.width = vW;
-                canvas.height = vH;
-                if (scanZoom > 1) {
-                  var sw = vW / scanZoom;
-                  var sh = vH / scanZoom;
-                  var sx = (vW - sw) / 2;
-                  var sy = (vH - sh) / 2;
-                  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, vW, vH);
-                } else {
-                  ctx.drawImage(video, 0, 0, vW, vH, 0, 0, vW, vH);
+                var code = tryDecodeAtZoom(scanZoom);
+                if (code && code.data) {
+                  onScanSuccess(code.data);
+                  return;
                 }
-                var imageData = ctx.getImageData(0, 0, vW, vH);
-                if (typeof jsQR !== "undefined") {
-                  var code = jsQR(imageData.data, imageData.width, imageData.height);
+                var nextZoomIndex = zoomIndex + 1;
+                if (nextZoomIndex < zoomLevels.length) {
+                  code = tryDecodeAtZoom(zoomLevels[nextZoomIndex]);
                   if (code && code.data) {
                     onScanSuccess(code.data);
                     return;
                   }
                 }
                 scanNoDecodeCount++;
-                if (scanNoDecodeCount >= ZOOM_STEP_FRAMES) {
+                if (scanNoDecodeCount >= ZOOM_STEP_FRAMES && zoomIndex < zoomLevels.length - 1) {
                   scanNoDecodeCount = 0;
-                  if (scanZoom === 1.5) { scanZoom = 2; setZoomHint(scanZoom); }
+                  zoomIndex++;
+                  scanZoom = zoomLevels[zoomIndex];
+                  setZoomHint(scanZoom);
                 }
               }
               scanAnimationId = requestAnimationFrame(tick);
