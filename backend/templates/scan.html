@@ -649,7 +649,7 @@
         <video id="scan-video" playsinline muted></video>
         <canvas id="scan-canvas"></canvas>
         <div class="scan-frame"></div>
-        <p class="scan-hint">将设备二维码或资产标签放入框内，支持完整链接或纯编号（资产编号）</p>
+        <p class="scan-hint" id="scan-hint">将设备二维码或资产标签放入框内，支持完整链接或纯编号（资产编号）</p>
       </div>
       <div class="scan-error" id="scan-error" style="display:none;"></div>
     </div>
@@ -1293,20 +1293,46 @@
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
+            var scanZoom = 1.5;
+            var scanNoDecodeCount = 0;
+            var ZOOM_STEP_FRAMES = 28;
+            var hintEl = document.getElementById("scan-hint");
+            function setZoomHint(z) {
+              if (!hintEl) return;
+              if (z >= 2) hintEl.textContent = "已放大至 2 倍，请保持稳定对准框内";
+              else if (z >= 1.5) hintEl.textContent = "请将小码对准框内中心（已针对小码优化）";
+              else hintEl.textContent = "将设备二维码或资产标签放入框内，支持完整链接或纯编号（资产编号）";
+            }
+            setZoomHint(scanZoom);
             function tick() {
               var ov = document.getElementById("scan-overlay");
               if (!ov || !ov.classList.contains("active")) return;
               if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
-                ctx.drawImage(video, 0, 0);
-                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var vW = video.videoWidth;
+                var vH = video.videoHeight;
+                canvas.width = vW;
+                canvas.height = vH;
+                if (scanZoom > 1) {
+                  var sw = vW / scanZoom;
+                  var sh = vH / scanZoom;
+                  var sx = (vW - sw) / 2;
+                  var sy = (vH - sh) / 2;
+                  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, vW, vH);
+                } else {
+                  ctx.drawImage(video, 0, 0, vW, vH, 0, 0, vW, vH);
+                }
+                var imageData = ctx.getImageData(0, 0, vW, vH);
                 if (typeof jsQR !== "undefined") {
                   var code = jsQR(imageData.data, imageData.width, imageData.height);
                   if (code && code.data) {
                     onScanSuccess(code.data);
                     return;
                   }
+                }
+                scanNoDecodeCount++;
+                if (scanNoDecodeCount >= ZOOM_STEP_FRAMES) {
+                  scanNoDecodeCount = 0;
+                  if (scanZoom === 1.5) { scanZoom = 2; setZoomHint(scanZoom); }
                 }
               }
               scanAnimationId = requestAnimationFrame(tick);
