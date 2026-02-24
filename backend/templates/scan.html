@@ -1334,13 +1334,32 @@
         }
       }
 
+      function normalizeDeviceCodeInputIfNeeded() {
+        if (!deviceCodeInput) return;
+        var val = deviceCodeInput.value;
+        if (!val || val.length < 4) return;
+        var looksLikeAsset = /[\r\n]/.test(val) || /资产|名称：|型号|数量：|启用日期/.test(val);
+        if (!looksLikeAsset) return;
+        var extracted = extractCodeFromRecognizedContent(val);
+        if (extracted && extracted !== val.trim()) {
+          deviceCodeInput.value = extracted;
+          updateQueryButtonState();
+        }
+      }
+      var normalizeInputTimer = null;
       try {
         loadUsageTypeOptions();
         if (deviceCodeInput) {
-          deviceCodeInput.addEventListener("input", updateQueryButtonState);
+          deviceCodeInput.addEventListener("input", function () {
+            updateQueryButtonState();
+            clearTimeout(normalizeInputTimer);
+            normalizeInputTimer = setTimeout(normalizeDeviceCodeInputIfNeeded, 200);
+          });
           deviceCodeInput.addEventListener("keyup", updateQueryButtonState);
           deviceCodeInput.addEventListener("change", updateQueryButtonState);
-          deviceCodeInput.addEventListener("paste", function () { setTimeout(updateQueryButtonState, 0); });
+          deviceCodeInput.addEventListener("paste", function () {
+            setTimeout(function () { updateQueryButtonState(); normalizeDeviceCodeInputIfNeeded(); }, 0);
+          });
           deviceCodeInput.addEventListener("blur", function () {
             var trimmed = deviceCodeInput.value.trim();
             if (!trimmed) { showDeviceCodeError(""); return; }
