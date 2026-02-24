@@ -12,6 +12,7 @@ from .audit import log_audit
 from .auth import get_current_user_optional, require_role
 from .config import settings
 from .database import engine, get_db
+from .device_code_utils import normalize_device_code
 
 # 设备导出表头
 DEVICE_EXPORT_HEADERS = [
@@ -136,13 +137,14 @@ def suggest_devices(
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     """联想/下拉用：轻量返回设备列表，用于使用记录筛选等。数据量大时避免一次拉全量。"""
+    q_normalized = normalize_device_code(q) if q else q
     query = db.query(models.Device).filter(models.Device.is_active.is_(True))
     if _devices_table_has_is_deleted():
         query = query.filter(models.Device.is_deleted.is_(False))
     if dept:
         query = query.filter(models.Device.dept == dept)
-    if q and q.strip():
-        like = f"%{q.strip()}%"
+    if q_normalized and q_normalized.strip():
+        like = f"%{q_normalized.strip()}%"
         query = query.filter(
             (models.Device.name.ilike(like))
             | (models.Device.device_code.ilike(like))
@@ -187,7 +189,8 @@ def list_devices(
     current_user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     is_admin = current_user and current_user.role in ("device_admin", "sys_admin")
-    query = _devices_query(db, dept, q, include_inactive, include_deleted, deleted_only, inactive_only, is_admin)
+    q_normalized = normalize_device_code(q) if q else q
+    query = _devices_query(db, dept, q_normalized, include_inactive, include_deleted, deleted_only, inactive_only, is_admin)
     return query.offset(offset).limit(limit).all()
 
 

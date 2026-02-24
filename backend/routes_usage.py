@@ -20,6 +20,7 @@ from .audit import log_audit
 from .auth import get_current_user_optional, get_current_user
 from .config import settings
 from .database import get_db
+from .device_code_utils import normalize_device_code
 from .form_templates import (
     get_form_schema as get_form_schema_from_templates,
     DEFAULT_USAGE_TYPE_TEMPLATE_MAP,
@@ -225,6 +226,10 @@ def create_usage_record(
 ):
     # 必须登录后登记，保证每条记录归属到对应用户，不同用户内容可区分
     user = current_user
+    # 支持现有资产码：识别结果可能为多行或「编码+文字」一行，只取编码查库
+    device_code_to_use = normalize_device_code(payload.device_code or "").strip()
+    if not device_code_to_use:
+        raise HTTPException(status_code=400, detail="设备编号不能为空")
 
     # 服务端模板校验：按操作类型检查必填字段
     usage_type_str = str(payload.usage_type)
@@ -235,7 +240,7 @@ def create_usage_record(
     device = (
         db.query(models.Device)
         .filter(
-            models.Device.device_code == payload.device_code,
+            models.Device.device_code == device_code_to_use,
             models.Device.is_active.is_(True),
         )
         .first()
@@ -248,7 +253,7 @@ def create_usage_record(
         unreturned = (
             db.query(models.UsageRecord)
             .filter(
-                models.UsageRecord.device_code == payload.device_code,
+                models.UsageRecord.device_code == device_code_to_use,
                 models.UsageRecord.usage_type == "2",
                 models.UsageRecord.is_deleted.is_(False),
                 models.UsageRecord.returned_at.is_(None),
@@ -267,7 +272,7 @@ def create_usage_record(
         db.query(models.UsageRecord)
         .filter(
             models.UsageRecord.user_id == user.id,
-            models.UsageRecord.device_code == payload.device_code,
+            models.UsageRecord.device_code == device_code_to_use,
             models.UsageRecord.is_deleted.is_(False),
             models.UsageRecord.created_at >= cutoff,
         )
@@ -279,6 +284,7 @@ def create_usage_record(
 
     data = payload.model_dump()
     data["usage_type"] = str(payload.usage_type)
+    data["device_code"] = device_code_to_use
     if not data.get("start_time"):
         data["start_time"] = now_china_as_utc()
     # 维护登记：若前端传了登记日期则用，否则用中国时区当天

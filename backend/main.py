@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from .config import JWT_SECRET_DEFAULT, settings
 from .database import Base, engine
+from .device_code_utils import normalize_device_code
 from . import models
 from . import routes_auth, routes_audit, routes_dashboard, routes_devices, routes_dict, routes_usage, routes_users
 from .admin_access import AdminAccessMiddleware
@@ -121,11 +122,12 @@ def create_app() -> FastAPI:
     async def root():
         return {"message": "设备扫码登记系统 API 在线"}
 
-    # 短链：扫带「纯编号」的二维码时，若打印为 URL 可指向此路径，自动跳转登记页
+    # 短链：扫带「纯编号」的二维码时，若打印为 URL 可指向此路径，自动跳转登记页（支持现有资产码多行/一行内容，只取编码）
     @app.get("/s/{device_code}", response_class=RedirectResponse, include_in_schema=False)
     async def short_scan_redirect(device_code: str):
+        code = normalize_device_code(device_code)
         return RedirectResponse(
-            url=f"/h5/scan?device_code={device_code}",
+            url=f"/h5/scan?device_code={code}",
             status_code=302,
         )
 

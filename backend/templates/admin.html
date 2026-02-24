@@ -378,6 +378,10 @@
         box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       }
       .device-qr-modal-box img { max-width: 280px; max-height: 280px; display: block; }
+      .device-qr-modal-info { text-align: center; font-size: 14px; color: var(--text); line-height: 1.5; }
+      .device-qr-modal-info .qr-info-code { font-weight: 600; margin-bottom: 4px; }
+      .device-qr-modal-info .qr-info-name { color: var(--text-muted); }
+      .device-qr-modal-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
       .device-qr-modal-box button { align-self: center; }
 
       /* 用户管理：修改密码弹窗（与二维码弹窗同风格） */
@@ -817,7 +821,12 @@
               <div class="device-qr-modal-backdrop"></div>
               <div class="device-qr-modal-box">
                 <img id="device-qr-modal-img" src="" alt="设备二维码" />
-                <button type="button" id="device-qr-modal-close" class="secondary">关闭</button>
+                <div id="device-qr-modal-info" class="device-qr-modal-info"></div>
+                <div class="device-qr-modal-actions">
+                  <button type="button" id="device-qr-modal-download" class="secondary">下载图片</button>
+                  <button type="button" id="device-qr-modal-print" class="secondary">打印</button>
+                  <button type="button" id="device-qr-modal-close" class="secondary">关闭</button>
+                </div>
               </div>
             </div>
             <div id="device-import-modal" class="user-pw-modal" role="dialog" aria-modal="true" aria-label="批量导入" style="display:none;">
@@ -1383,7 +1392,7 @@
             ? "<span class=\"device-active-pill device-active-pill-on\">启用</span>"
             : "<span class=\"device-active-pill device-active-pill-off\">停用</span>";
           const qrLink = (d.is_active && !d.is_deleted)
-            ? "<button type=\"button\" class=\"device-qrcode-link\" data-id=\"" + d.id + "\" title=\"点击查看二维码\"><span class=\"qr-icon\" aria-hidden=\"true\"></span><span class=\"qr-text\">二维码</span></button>"
+            ? "<button type=\"button\" class=\"device-qrcode-link\" data-id=\"" + d.id + "\" data-device-code=\"" + escapeHtml(d.device_code || "") + "\" data-name=\"" + escapeHtml(d.name || "") + "\" title=\"点击查看二维码\"><span class=\"qr-icon\" aria-hidden=\"true\"></span><span class=\"qr-text\">二维码</span></button>"
             : "<span class=\"device-qrcode-disabled\">无权限查看</span>";
           var actionParts = [];
           if (!d.is_deleted) {
@@ -1460,11 +1469,15 @@
         return list;
       }
       var deviceQrModalCurrentUrl = null;
+      var deviceQrModalCode = "";
+      var deviceQrModalName = "";
       function closeDeviceQrModal() {
         var modal = document.getElementById("device-qr-modal");
         var img = document.getElementById("device-qr-modal-img");
+        var infoEl = document.getElementById("device-qr-modal-info");
         if (deviceQrModalCurrentUrl) { URL.revokeObjectURL(deviceQrModalCurrentUrl); deviceQrModalCurrentUrl = null; }
         if (img) img.removeAttribute("src");
+        if (infoEl) infoEl.innerHTML = "";
         if (modal) modal.style.display = "none";
       }
       async function openDeviceQrModal(deviceId) {
@@ -1472,7 +1485,17 @@
         closeDeviceQrModal();
         var modal = document.getElementById("device-qr-modal");
         var img = document.getElementById("device-qr-modal-img");
+        var infoEl = document.getElementById("device-qr-modal-info");
         if (!modal || !img) return;
+        var btn = document.querySelector(".device-qrcode-link[data-id=\"" + deviceId + "\"]");
+        var code = (btn && btn.dataset.deviceCode) ? btn.dataset.deviceCode : "";
+        var name = (btn && btn.dataset.name) ? btn.dataset.name : "";
+        deviceQrModalCode = code;
+        deviceQrModalName = name;
+        if (infoEl) {
+          infoEl.innerHTML = (code ? "<div class=\"qr-info-code\">资产编码：" + escapeHtml(code) + "</div>" : "") +
+            (name ? "<div class=\"qr-info-name\">名称：" + escapeHtml(name) + "</div>" : "");
+        }
         modal.style.display = "flex";
         try {
           var res = await fetch("/api/devices/" + deviceId + "/qrcode", { headers: authHeaders() });
@@ -2779,6 +2802,28 @@
         var qrModalBackdrop = document.querySelector("#device-qr-modal .device-qr-modal-backdrop");
         if (qrModalClose) qrModalClose.addEventListener("click", closeDeviceQrModal);
         if (qrModalBackdrop) qrModalBackdrop.addEventListener("click", closeDeviceQrModal);
+        var qrModalDownload = document.getElementById("device-qr-modal-download");
+        if (qrModalDownload) qrModalDownload.addEventListener("click", function () {
+          if (!deviceQrModalCurrentUrl) return;
+          var a = document.createElement("a");
+          a.href = deviceQrModalCurrentUrl;
+          a.download = (deviceQrModalCode ? "qrcode_" + deviceQrModalCode.replace(/[^\w\-]/g, "_") : "qrcode") + ".png";
+          a.click();
+        });
+        var qrModalPrint = document.getElementById("device-qr-modal-print");
+        if (qrModalPrint) qrModalPrint.addEventListener("click", function () {
+          if (!deviceQrModalCurrentUrl) return;
+          var w = window.open("", "_blank");
+          if (!w) { alert("请允许弹窗后重试"); return; }
+          var safeUrl = deviceQrModalCurrentUrl.replace(/\\/g, "\\\\").replace(/"/g, "&quot;");
+          w.document.write("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>打印二维码</title></head><body style=\"text-align:center;padding:24px;font-family:sans-serif;\">");
+          w.document.write("<img src=\"" + safeUrl + "\" alt=\"二维码\" style=\"max-width:280px;\" onload=\"window.print();\" />");
+          if (deviceQrModalCode) w.document.write("<p style=\"margin:12px 0 4px;font-weight:600;\">资产编码：" + escapeHtml(deviceQrModalCode) + "</p>");
+          if (deviceQrModalName) w.document.write("<p style=\"margin:0;color:#64748b;\">名称：" + escapeHtml(deviceQrModalName) + "</p>");
+          w.document.write("<p style=\"margin-top:16px;font-size:12px;color:#94a3b8;\">打印后可关闭此窗口</p>");
+          w.document.write("</body></html>");
+          w.document.close();
+        });
       })();
     </script>
   </body>

@@ -1171,21 +1171,22 @@
 
       async function loadDeviceByCode(code) {
         successPanel.style.display = "none";
-        const trimmed = (code || "").trim();
+        var trimmed = (code || "").trim();
         if (!trimmed) {
           showDeviceState("请输入设备编号", true);
           showDeviceCodeError("");
           return;
         }
-        deviceCodeInput.value = trimmed;
+        var normalized = extractCodeFromRecognizedContent(trimmed) || trimmed;
+        deviceCodeInput.value = normalized;
         showDeviceState("正在查询...", false);
         deviceInfoEl.classList.add("loading");
         showDeviceCodeError("");
         try {
-          const res = await fetch("/api/devices?q=" + encodeURIComponent(trimmed), { headers: authHeaders() });
+          const res = await fetch("/api/devices?q=" + encodeURIComponent(normalized), { headers: authHeaders() });
           if (!res.ok) throw new Error("查询失败");
           const list = await res.json();
-          const found = list.find(function (d) { return d.device_code === trimmed; });
+          const found = list.find(function (d) { return d.device_code === normalized; });
           if (!found) {
             setValidationInvalid();
             deviceInfoEl.classList.remove("loading");
@@ -1203,7 +1204,29 @@
         loadDeviceByCode(deviceCodeInput.value);
       }
 
-      /* 解析扫码结果：URL 中 device_id= / device_code=，或纯设备编号 */
+      /* 从识别结果中只取出设备编码（支持现有资产码多行或一行「编码+文字」） */
+      function extractCodeFromRecognizedContent(text) {
+        if (!text || typeof text !== "string") return "";
+        var s = text.trim();
+        if (!s) return s;
+        var lines = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").map(function (ln) { return ln.trim(); }).filter(Boolean);
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.indexOf("资产编号") !== -1 && line.indexOf("：") !== -1) {
+            var after = line.slice(line.indexOf("：") + 1).trim();
+            if (after) return after.split(/\s+/)[0] || after;
+          }
+          if (line.indexOf("编码") !== -1 && line.indexOf("：") !== -1 && line.slice(0, line.indexOf("编码")).indexOf("资产编号") === -1) {
+            var after = line.slice(line.indexOf("：") + 1).trim();
+            if (after) return after.split(/\s+/)[0] || after;
+          }
+        }
+        var first = lines.length ? lines[0] : s;
+        var m = first.match(/^([0-9A-Za-z\-_]+)/);
+        return m ? m[1] : first.trim();
+      }
+
+      /* 解析扫码结果：URL 中 device_id= / device_code=，或纯设备编号/现有资产码多行内容 */
       function parseScanResult(raw) {
         if (!raw || typeof raw !== "string") return null;
         var s = raw.trim();
@@ -1213,13 +1236,13 @@
           if (/^https?:\/\//i.test(s)) u = new URL(s);
           else if (s.indexOf("/") === 0) u = new URL(s, location.origin);
           else if (s.indexOf("?") !== -1) u = new URL(s, location.origin + "/");
-          else return { type: "code", value: s };
+          else return { type: "code", value: extractCodeFromRecognizedContent(s) };
           var id = u.searchParams.get("device_id");
           if (id && /^\d+$/.test(id)) return { type: "id", value: parseInt(id, 10) };
           var code = u.searchParams.get("device_code");
-          if (code) return { type: "code", value: code.trim() };
+          if (code) return { type: "code", value: extractCodeFromRecognizedContent(code.trim()) };
         } catch (e) {}
-        return { type: "code", value: s };
+        return { type: "code", value: extractCodeFromRecognizedContent(s) };
       }
 
       function onScanSuccess(rawString) {
@@ -1297,11 +1320,13 @@
       }
 
       async function validateDeviceCodeOnBlur(trimmed) {
+        var normalized = extractCodeFromRecognizedContent(trimmed) || trimmed;
+        if (normalized !== trimmed && deviceCodeInput) deviceCodeInput.value = normalized;
         try {
-          var res = await fetch("/api/devices?q=" + encodeURIComponent(trimmed), { headers: authHeaders() });
+          var res = await fetch("/api/devices?q=" + encodeURIComponent(normalized), { headers: authHeaders() });
           if (!res.ok) { setValidationInvalid(); return; }
           var list = await res.json();
-          var found = list.find(function (d) { return d.device_code === trimmed; });
+          var found = list.find(function (d) { return d.device_code === normalized; });
           if (!found) { setValidationInvalid(); return; }
           setDeviceLoaded(found);
         } catch (e) {
