@@ -1320,20 +1320,30 @@
             );
             _qrScannerInstance = scanner;
             scanner.start().then(function () {
-              // 尝试硬件 zoom（部分设备支持）
+              // 启动后优化摄像头：高分辨率 + 连续对焦 + 硬件 zoom
               try {
-                var track = QrScanner.getActiveVideoTrack && QrScanner.getActiveVideoTrack();
-                if (!track && video.srcObject) {
+                var track = null;
+                if (video.srcObject) {
                   var tracks = video.srcObject.getVideoTracks();
                   if (tracks.length) track = tracks[0];
                 }
                 if (track) {
                   var caps = track.getCapabilities ? track.getCapabilities() : {};
+                  var adv = [];
+                  // 请求最高分辨率
+                  if (caps.width && caps.width.max) adv.push({ width: Math.min(1920, caps.width.max) });
+                  if (caps.height && caps.height.max) adv.push({ height: Math.min(1080, caps.height.max) });
+                  // 连续自动对焦
+                  if (caps.focusMode && caps.focusMode.indexOf("continuous") !== -1) {
+                    adv.push({ focusMode: "continuous" });
+                  }
+                  // 硬件 zoom
                   if (caps.zoom && caps.zoom.max > 1) {
                     var hwZoom = Math.min(2, caps.zoom.max);
-                    track.applyConstraints({ advanced: [{ zoom: hwZoom }] }).catch(function () {});
+                    adv.push({ zoom: hwZoom });
                     if (hintEl) hintEl.textContent = "已启用硬件放大，请将二维码对准框内中心";
                   }
+                  if (adv.length) track.applyConstraints({ advanced: adv }).catch(function () {});
                 }
               } catch (e) {}
             }).catch(function (err) {
@@ -1359,8 +1369,8 @@
         navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 }
           }
         })
           .then(function (stream) {
@@ -1368,15 +1378,20 @@
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
-            // 尝试硬件 zoom
+            // 优化摄像头：连续对焦 + 硬件 zoom
             try {
               var track = stream.getVideoTracks()[0];
               if (track) {
                 var caps = track.getCapabilities ? track.getCapabilities() : {};
+                var adv = [];
+                if (caps.focusMode && caps.focusMode.indexOf("continuous") !== -1) {
+                  adv.push({ focusMode: "continuous" });
+                }
                 if (caps.zoom && caps.zoom.max > 1) {
                   var hwZoom = Math.min(2, caps.zoom.max);
-                  track.applyConstraints({ advanced: [{ zoom: hwZoom }] }).catch(function () {});
+                  adv.push({ zoom: hwZoom });
                 }
+                if (adv.length) track.applyConstraints({ advanced: adv }).catch(function () {});
               }
             } catch (e) {}
             var zoomLevels = [1, 1.5, 2, 2.5];
