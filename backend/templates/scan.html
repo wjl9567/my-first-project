@@ -661,6 +661,7 @@
       <a href="/h5/my-records">我的记录</a>
     </nav>
 
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
@@ -1283,8 +1284,57 @@
         if (errEl) errEl.style.display = "none";
       }
 
+      var _wxConfigReady = false;
+      var _isWecom = /wxwork/i.test(navigator.userAgent);
+
+      // 企微环境：初始化 JS-SDK
+      if (_isWecom && typeof wx !== "undefined") {
+        (function () {
+          var configUrl = location.href.split("#")[0];
+          fetch("/api/wecom/js-sdk-config?url=" + encodeURIComponent(configUrl), { headers: authHeaders() })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (cfg) {
+              if (!cfg) return;
+              wx.config({
+                beta: true,
+                debug: false,
+                appId: cfg.appId,
+                timestamp: cfg.timestamp,
+                nonceStr: cfg.nonceStr,
+                signature: cfg.signature,
+                jsApiList: ["scanQRCode"],
+              });
+              wx.ready(function () { _wxConfigReady = true; });
+              wx.error(function () { _wxConfigReady = false; });
+            })
+            .catch(function () {});
+        })();
+      }
+
       function startScan() {
         if (device) return;
+
+        // 企微环境 + JS-SDK 就绪：调用原生扫码
+        if (_isWecom && _wxConfigReady && typeof wx !== "undefined") {
+          wx.scanQRCode({
+            needResult: 1,
+            scanType: ["qrCode", "barCode"],
+            success: function (res) {
+              var result = res.resultStr || "";
+              if (result) onScanSuccess(result);
+            },
+            fail: function () {
+              _startH5Scan();
+            },
+            cancel: function () {},
+          });
+          return;
+        }
+
+        _startH5Scan();
+      }
+
+      function _startH5Scan() {
         var overlay = document.getElementById("scan-overlay");
         var video = document.getElementById("scan-video");
         var canvas = document.getElementById("scan-canvas");

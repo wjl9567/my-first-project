@@ -12,7 +12,7 @@ from .config import JWT_SECRET_DEFAULT, settings
 from .database import Base, engine
 from .device_code_utils import normalize_device_code
 from . import models
-from . import routes_auth, routes_audit, routes_dashboard, routes_devices, routes_dict, routes_usage, routes_users
+from . import routes_auth, routes_audit, routes_dashboard, routes_devices, routes_dict, routes_usage, routes_users, routes_wecom
 from .admin_access import AdminAccessMiddleware
 
 _logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=_DOCS_TITLE,
         description=_DOCS_DESCRIPTION,
-        version="1.5",
+        version="1.6",
         docs_url=None,
         redoc_url=None,
     )
@@ -170,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_dict.router)
     app.include_router(routes_usage.router)
     app.include_router(routes_users.router)
+    app.include_router(routes_wecom.router)
 
     static_dir = _BASE / "static"
     if static_dir.is_dir():

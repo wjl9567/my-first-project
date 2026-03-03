@@ -456,8 +456,11 @@
         } else {
           try {
             if (!localStorage.getItem("device_scan_token")) {
-              location.replace("/api/auth/wecom/login?next_path=/h5/my-records");
-              return;
+              var isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+              if (!isLocal) {
+                location.replace("/api/auth/wecom/login?next_path=/h5/my-records");
+                return;
+              }
             }
           } catch (e) {}
         }
