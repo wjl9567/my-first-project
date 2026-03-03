@@ -926,6 +926,38 @@
               </div>
             </div>
           </div>
+          <div id="user-edit-modal" class="user-pw-modal" role="dialog" aria-modal="true" aria-label="编辑用户信息" style="display:none;">
+            <div class="user-pw-modal-backdrop" id="user-edit-backdrop"></div>
+            <div class="user-pw-modal-box">
+              <h3 style="margin:0;">编辑用户信息</h3>
+              <p class="mb" id="user-edit-sub" style="margin:0;color:var(--text-muted);font-size:13px;"></p>
+              <div class="form-row">
+                <label>姓名 <span style="color:#dc2626;">*</span></label>
+                <input type="text" id="user-edit-realname" placeholder="姓名" maxlength="64" />
+              </div>
+              <div class="form-row">
+                <label>用户名</label>
+                <input type="text" id="user-edit-username" placeholder="登录用户名（可选）" maxlength="64" autocomplete="off" />
+              </div>
+              <div class="form-row">
+                <label>角色</label>
+                <select id="user-edit-role" aria-label="角色">
+                  <option value="user">普通用户</option>
+                  <option value="device_admin">设备管理员</option>
+                  <option value="sys_admin">系统管理员</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>科室</label>
+                <input type="text" id="user-edit-dept" placeholder="选填" maxlength="128" />
+              </div>
+              <div class="msg" id="user-edit-msg"></div>
+              <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" id="user-edit-cancel" class="secondary">取消</button>
+                <button type="button" id="user-edit-save">保存</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="panel-usage" class="admin-panel">
@@ -1964,6 +1996,16 @@
             var isAdminTarget = (role === "device_admin" || role === "sys_admin");
             var isSelf = u && (currentUserId != null && u.id === currentUserId);
 
+            // 编辑用户信息：管理员可操作
+            if (currentUserRole === "device_admin" || currentUserRole === "sys_admin") {
+              var btnEdit = document.createElement("button");
+              btnEdit.type = "button";
+              btnEdit.className = "secondary";
+              btnEdit.textContent = "编辑";
+              btnEdit.onclick = function () { openUserEditModal(u); };
+              wrap.appendChild(btnEdit);
+            }
+
             // 修改密码：仅系统管理员、且目标有本地用户名时可操作
             if (currentUserRole === "sys_admin" && u && u.username) {
               var btnPw = document.createElement("button");
@@ -2028,6 +2070,83 @@
       }
       [userAddUsername, userAddPassword, userAddRealname, userAddRole, userAddDept].forEach(function (el) {
         if (el) el.addEventListener("keydown", userAddKeyHandler);
+      });
+
+      // ========== 编辑用户信息弹窗 ==========
+      var userEditModal = document.getElementById("user-edit-modal");
+      var userEditBackdrop = document.getElementById("user-edit-backdrop");
+      var userEditRealname = document.getElementById("user-edit-realname");
+      var userEditUsername = document.getElementById("user-edit-username");
+      var userEditRole = document.getElementById("user-edit-role");
+      var userEditDept = document.getElementById("user-edit-dept");
+      var userEditMsg = document.getElementById("user-edit-msg");
+      var userEditCancel = document.getElementById("user-edit-cancel");
+      var userEditSave = document.getElementById("user-edit-save");
+      var userEditSub = document.getElementById("user-edit-sub");
+      var _editingUserId = null;
+
+      function openUserEditModal(u) {
+        _editingUserId = u.id;
+        if (userEditSub) userEditSub.textContent = "用户 ID: " + u.id + (u.wx_userid ? "（企微: " + u.wx_userid + "）" : "");
+        if (userEditRealname) userEditRealname.value = u.real_name || "";
+        if (userEditUsername) userEditUsername.value = u.username || "";
+        if (userEditRole) userEditRole.value = u.role || "user";
+        if (userEditDept) userEditDept.value = u.dept || "";
+        if (userEditMsg) { userEditMsg.textContent = ""; userEditMsg.style.color = ""; }
+        if (userEditSave) { userEditSave.disabled = false; userEditSave.textContent = "保存"; }
+        if (userEditModal) userEditModal.style.display = "flex";
+        if (userEditRealname) userEditRealname.focus();
+      }
+      function closeUserEditModal() {
+        if (userEditModal) userEditModal.style.display = "none";
+        _editingUserId = null;
+      }
+      async function submitUserEdit() {
+        if (!_editingUserId || !userEditRealname || !userEditMsg || !userEditSave) return;
+        var realName = userEditRealname.value.trim();
+        if (!realName) { userEditMsg.textContent = "姓名不能为空"; userEditMsg.style.color = "#dc2626"; return; }
+        var body = {};
+        body.real_name = realName;
+        body.username = userEditUsername ? userEditUsername.value.trim() : undefined;
+        body.role = userEditRole ? userEditRole.value : undefined;
+        body.dept = userEditDept ? userEditDept.value.trim() : undefined;
+        userEditSave.disabled = true;
+        userEditSave.textContent = "保存中...";
+        userEditMsg.textContent = "";
+        try {
+          var res = await fetch("/api/users/" + _editingUserId, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            var err = await res.json().catch(function () { return {}; });
+            userEditMsg.textContent = err.detail || "保存失败";
+            userEditMsg.style.color = "#dc2626";
+            userEditSave.disabled = false;
+            userEditSave.textContent = "保存";
+            return;
+          }
+          userEditMsg.textContent = "已保存";
+          userEditMsg.style.color = "#059669";
+          userEditSave.textContent = "已保存";
+          setTimeout(function () { closeUserEditModal(); loadUsers(); }, 600);
+        } catch (e) {
+          userEditMsg.textContent = "网络错误";
+          userEditMsg.style.color = "#dc2626";
+          userEditSave.disabled = false;
+          userEditSave.textContent = "保存";
+        }
+      }
+      if (userEditCancel) userEditCancel.onclick = closeUserEditModal;
+      if (userEditBackdrop) userEditBackdrop.onclick = closeUserEditModal;
+      if (userEditSave) userEditSave.onclick = submitUserEdit;
+      function userEditKeyHandler(e) {
+        if (e.key === "Escape") { e.preventDefault(); closeUserEditModal(); }
+        if (e.key === "Enter") { e.preventDefault(); submitUserEdit(); }
+      }
+      [userEditRealname, userEditUsername, userEditRole, userEditDept].forEach(function (el) {
+        if (el) el.addEventListener("keydown", userEditKeyHandler);
       });
       function userPwKeyHandler(e) {
         if (e.key === "Escape") { e.preventDefault(); closeUserPwModal(); }

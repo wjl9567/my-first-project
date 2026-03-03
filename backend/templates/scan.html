@@ -661,6 +661,7 @@
       <a href="/h5/my-records">我的记录</a>
     </nav>
 
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
       (function () {
@@ -1259,7 +1260,13 @@
         else loadDeviceByCode(parsed.value);
       }
 
+      var _qrScannerInstance = null;
+
       function stopScan() {
+        if (_qrScannerInstance) {
+          try { _qrScannerInstance.stop(); _qrScannerInstance.destroy(); } catch (e) {}
+          _qrScannerInstance = null;
+        }
         if (scanAnimationId) {
           cancelAnimationFrame(scanAnimationId);
           scanAnimationId = null;
@@ -1288,7 +1295,63 @@
         if (!video || !canvas) return;
         var ctx = canvas.getContext("2d");
         if (!ctx) return;
+        var hintEl = document.getElementById("scan-hint");
 
+        // 尝试使用 qr-scanner（识别率远高于 jsQR，支持原生 BarcodeDetector）
+        if (typeof QrScanner !== "undefined") {
+          try {
+            if (hintEl) hintEl.textContent = "请将二维码对准框内中心";
+            var scanner = new QrScanner(
+              video,
+              function (result) {
+                var data = (typeof result === "string") ? result : (result && result.data);
+                if (data) {
+                  stopScan();
+                  onScanSuccess(data);
+                }
+              },
+              {
+                preferredCamera: "environment",
+                maxScansPerSecond: 15,
+                highlightScanRegion: false,
+                highlightCodeOutline: false,
+                returnDetailedScanResult: true,
+              }
+            );
+            _qrScannerInstance = scanner;
+            scanner.start().then(function () {
+              // 尝试硬件 zoom（部分设备支持）
+              try {
+                var track = QrScanner.getActiveVideoTrack && QrScanner.getActiveVideoTrack();
+                if (!track && video.srcObject) {
+                  var tracks = video.srcObject.getVideoTracks();
+                  if (tracks.length) track = tracks[0];
+                }
+                if (track) {
+                  var caps = track.getCapabilities ? track.getCapabilities() : {};
+                  if (caps.zoom && caps.zoom.max > 1) {
+                    var hwZoom = Math.min(2, caps.zoom.max);
+                    track.applyConstraints({ advanced: [{ zoom: hwZoom }] }).catch(function () {});
+                    if (hintEl) hintEl.textContent = "已启用硬件放大，请将二维码对准框内中心";
+                  }
+                }
+              } catch (e) {}
+            }).catch(function (err) {
+              // qr-scanner 启动失败，降级到 jsQR
+              _qrScannerInstance = null;
+              _startJsQRFallback(video, canvas, ctx, errEl, hintEl);
+            });
+            return;
+          } catch (e) {
+            _qrScannerInstance = null;
+          }
+        }
+
+        // 降级：使用 jsQR + 多档放大
+        _startJsQRFallback(video, canvas, ctx, errEl, hintEl);
+      }
+
+      function _startJsQRFallback(video, canvas, ctx, errEl, hintEl) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           if (errEl) { errEl.style.display = "block"; errEl.textContent = "当前浏览器不支持摄像头，请改用输入设备编号。"; }
           return;
@@ -1296,8 +1359,8 @@
         navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
           }
         })
           .then(function (stream) {
@@ -1305,12 +1368,22 @@
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
-            var zoomLevels = [1.5, 2, 2.5];
+            // 尝试硬件 zoom
+            try {
+              var track = stream.getVideoTracks()[0];
+              if (track) {
+                var caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.zoom && caps.zoom.max > 1) {
+                  var hwZoom = Math.min(2, caps.zoom.max);
+                  track.applyConstraints({ advanced: [{ zoom: hwZoom }] }).catch(function () {});
+                }
+              }
+            } catch (e) {}
+            var zoomLevels = [1, 1.5, 2, 2.5];
             var zoomIndex = 0;
             var scanZoom = zoomLevels[zoomIndex];
             var scanNoDecodeCount = 0;
-            var ZOOM_STEP_FRAMES = 28;
-            var hintEl = document.getElementById("scan-hint");
+            var ZOOM_STEP_FRAMES = 25;
             function setZoomHint(z) {
               if (!hintEl) return;
               if (z >= 2.5) hintEl.textContent = "已 2.5 倍放大，请将二维码对准框内中心";

@@ -150,3 +150,67 @@ def admin_update_user_active(
         details=f"{'enable' if u.is_active else 'disable'}:{u.username or u.wx_userid or u.id}",
     )
     return {"ok": True, "is_active": u.is_active}
+
+
+@router.patch("/{user_id}", response_model=schemas.UserListRead)
+def admin_update_user_profile(
+    user_id: int,
+    payload: schemas.UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role("device_admin", "sys_admin")),
+):
+    """管理员修改用户信息（姓名、科室、角色、用户名）。"""
+    u = db.get(models.User, user_id)
+    if not u:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    changes = []
+    if payload.real_name is not None:
+        name = payload.real_name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="姓名不能为空")
+        if name != (u.real_name or ""):
+            u.real_name = name
+            changes.append(f"real_name={name}")
+    if payload.dept is not None:
+        dept = payload.dept.strip() or None
+        if dept != u.dept:
+            u.dept = dept
+            changes.append(f"dept={dept}")
+    if payload.role is not None:
+        role = payload.role.strip()
+        if role not in _ALLOWED_ROLES:
+            raise HTTPException(status_code=400, detail="角色须为 user / device_admin / sys_admin")
+        if current_user.role == "device_admin" and role != "user":
+            raise HTTPException(status_code=403, detail="设备管理员仅可设置普通用户角色")
+        if u.id == current_user.id and role != current_user.role:
+            raise HTTPException(status_code=400, detail="不可修改自己的角色")
+        if role != (u.role or "user"):
+            u.role = role
+            changes.append(f"role={role}")
+    if payload.username is not None:
+        uname = payload.username.strip()
+        if uname:
+            existing = db.query(models.User).filter(
+                models.User.username == uname, models.User.id != u.id
+            ).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="该用户名已被其他用户使用")
+        if uname != (u.username or ""):
+            u.username = uname or None
+            changes.append(f"username={uname}")
+    if not changes:
+        pass
+    else:
+        db.commit()
+        db.refresh(u)
+        log_audit(db, current_user.id, "user.profile_update", "user", u.id, details=";".join(changes))
+    return schemas.UserListRead(
+        id=u.id,
+        username=u.username,
+        wx_userid=u.wx_userid,
+        real_name=u.real_name or "",
+        role=u.role or "user",
+        dept=u.dept,
+        is_active=getattr(u, "is_active", True),
+        created_at=u.created_at,
+    )

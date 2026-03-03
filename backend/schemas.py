@@ -73,6 +73,15 @@ class UserActiveUpdate(BaseModel):
     is_active: bool = Field(..., description="true 启用 / false 停用")
 
 
+class UserProfileUpdate(BaseModel):
+    """管理员修改用户信息（姓名、科室、角色、用户名等）。"""
+
+    real_name: Optional[str] = Field(None, max_length=64, description="姓名")
+    dept: Optional[str] = Field(None, max_length=128, description="科室")
+    role: Optional[str] = Field(None, description="角色：user / device_admin / sys_admin")
+    username: Optional[str] = Field(None, max_length=64, description="用户名（唯一）")
+
+
 class DeviceBase(BaseModel):
     device_code: str = Field(..., description="设备内部编号，唯一")
     name: str
