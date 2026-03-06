@@ -855,8 +855,12 @@
           <h2>用户管理</h2>
           <div class="card">
             <p class="mb" style="color:var(--text-muted);">系统用户列表（企业微信登录或管理员账号）。支持新增本地用户、修改密码、停用/启用；仅系统管理员可修改密码与创建管理员角色。</p>
-            <div class="mb">
+            <div class="mb" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
               <button type="button" id="btn-user-add" class="primary">新增用户</button>
+              <span style="color:var(--text-muted);margin-left:8px;">检索：</span>
+              <input type="text" id="user-search-q" placeholder="工号/姓名/科室" maxlength="64" style="width:180px;" />
+              <button type="button" id="btn-user-search" class="secondary">查询</button>
+              <button type="button" id="btn-user-search-clear" class="secondary">清空</button>
             </div>
             <table id="table-users" class="resizable-cols">
               <thead>
@@ -1964,14 +1968,20 @@
         }
       }
 
+      var userSearchQ = "";
       async function loadUsers() {
         var tbody = document.getElementById("user-list");
         if (tbody) tbody.innerHTML = "<tr><td colspan=\"7\" class=\"loading-cell\">加载中...</td></tr>";
         var offset = userPage * userPageSize;
         var listUrl = "/api/users?limit=" + userPageSize + "&offset=" + offset;
+        var countUrl = "/api/users/count";
+        if (userSearchQ) {
+          listUrl += "&q=" + encodeURIComponent(userSearchQ);
+          countUrl += "?q=" + encodeURIComponent(userSearchQ);
+        }
         try {
           var listRes = await fetch(listUrl, { headers: authHeaders() });
-          var countRes = await fetch("/api/users/count", { headers: authHeaders() });
+          var countRes = await fetch(countUrl, { headers: authHeaders() });
           if (!listRes.ok) return;
           var list = await listRes.json();
           userTotal = countRes.ok ? (await countRes.json()).total : list.length;
@@ -2056,6 +2066,12 @@
       var userNextEl = document.getElementById("user-next");
       if (userPrevEl) userPrevEl.onclick = function () { if (userPage > 0) { userPage--; loadUsers(); } };
       if (userNextEl) userNextEl.onclick = function () { if ((userPage + 1) * userPageSize < userTotal) { userPage++; loadUsers(); } };
+      var userSearchInput = document.getElementById("user-search-q");
+      var btnUserSearch = document.getElementById("btn-user-search");
+      var btnUserSearchClear = document.getElementById("btn-user-search-clear");
+      if (btnUserSearch) btnUserSearch.onclick = function () { userSearchQ = userSearchInput ? (userSearchInput.value || "").trim() : ""; userPage = 0; loadUsers(); };
+      if (btnUserSearchClear) btnUserSearchClear.onclick = function () { userSearchQ = ""; if (userSearchInput) userSearchInput.value = ""; userPage = 0; loadUsers(); };
+      if (userSearchInput) userSearchInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); if (btnUserSearch) btnUserSearch.click(); } });
       if (userPwCancel) userPwCancel.onclick = closeUserPwModal;
       if (userPwBackdrop) userPwBackdrop.onclick = closeUserPwModal;
       if (userPwSave) userPwSave.onclick = submitUserPw;

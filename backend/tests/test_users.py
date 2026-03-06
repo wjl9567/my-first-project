@@ -26,6 +26,89 @@ def test_users_count(client: TestClient, admin_headers: dict):
     assert "total" in r.json()
 
 
+def test_users_list_with_search_q(client: TestClient, admin_headers: dict, db):
+    """用户列表支持 q 参数：按工号/用户名、姓名、科室模糊检索。"""
+    from backend import models
+    from backend.auth import hash_password
+
+    uname = f"search_u_{uuid.uuid4().hex[:10]}"
+    u = models.User(
+        wx_userid=None,
+        username=uname,
+        real_name="检索测试张三",
+        role="user",
+        dept="检索测试科室A",
+        password_hash=hash_password("pass1234"),
+        is_active=True,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    try:
+        # 无 q：应包含该用户
+        r_all = client.get("/api/users?limit=500", headers=admin_headers)
+        assert r_all.status_code == 200
+        ids_all = [x["id"] for x in r_all.json() if x.get("username") == uname]
+        assert u.id in ids_all or any(x.get("username") == uname for x in r_all.json())
+
+        # q 匹配姓名
+        r_name = client.get("/api/users?limit=500&q=检索测试张三", headers=admin_headers)
+        assert r_name.status_code == 200
+        list_name = r_name.json()
+        assert any(x.get("id") == u.id and x.get("real_name") == "检索测试张三" for x in list_name)
+
+        # q 匹配科室
+        r_dept = client.get("/api/users?limit=500&q=科室A", headers=admin_headers)
+        assert r_dept.status_code == 200
+        assert any(x.get("id") == u.id for x in r_dept.json())
+
+        # q 匹配用户名
+        r_uname = client.get("/api/users?limit=500&q=" + uname[:8], headers=admin_headers)
+        assert r_uname.status_code == 200
+        assert any(x.get("id") == u.id and x.get("username") == uname for x in r_uname.json())
+
+        # q 不匹配应不包含
+        r_none = client.get("/api/users?limit=500&q=不可能存在的姓名xyz", headers=admin_headers)
+        assert r_none.status_code == 200
+        assert not any(x.get("id") == u.id for x in r_none.json())
+    finally:
+        db.query(models.AuditLog).filter(models.AuditLog.actor_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+
+
+def test_users_count_with_search_q(client: TestClient, admin_headers: dict, db):
+    """用户总数 /count 支持相同 q 参数，与列表筛选一致。"""
+    from backend import models
+    from backend.auth import hash_password
+
+    uname = f"countq_{uuid.uuid4().hex[:10]}"
+    u = models.User(
+        wx_userid=None,
+        username=uname,
+        real_name="计数检索李四",
+        role="user",
+        dept="计数科室B",
+        password_hash=hash_password("pass1234"),
+        is_active=True,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    try:
+        r_count = client.get("/api/users/count?q=计数检索李四", headers=admin_headers)
+        assert r_count.status_code == 200
+        total = r_count.json().get("total", 0)
+        assert total >= 1
+        r_list = client.get("/api/users?limit=500&q=计数检索李四", headers=admin_headers)
+        assert r_list.status_code == 200
+        assert len(r_list.json()) == total
+    finally:
+        db.query(models.AuditLog).filter(models.AuditLog.actor_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+
+
 def test_admin_update_user_password(client: TestClient, admin_headers: dict, db):
     """系统管理员可重置本地账号密码，重置后可用新密码登录。"""
     from backend import models

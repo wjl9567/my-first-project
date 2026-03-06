@@ -1,7 +1,8 @@
 """管理端用户列表与统计（仅管理员可访问）。"""
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import models, schemas
@@ -61,13 +62,30 @@ def create_user(
     )
 
 
+def _user_filter_query(db: Session, q: Optional[str]):
+    """构建用户查询（可选按关键词模糊匹配工号/用户名、姓名、科室）。"""
+    query = db.query(models.User)
+    if q and q.strip():
+        key = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                models.User.username.ilike(key),
+                models.User.wx_userid.ilike(key),
+                models.User.real_name.ilike(key),
+                models.User.dept.ilike(key),
+            )
+        )
+    return query
+
+
 @router.get("/count")
 def count_users(
+    q: Optional[str] = Query(None, description="关键词：工号/用户名/姓名/科室，模糊匹配"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("device_admin", "sys_admin")),
 ):
-    """返回用户总数，用于工作台统计。"""
-    total = db.query(models.User).count()
+    """返回用户总数（支持与列表一致的 q 筛选）。"""
+    total = _user_filter_query(db, q).count()
     return {"total": total}
 
 
@@ -75,12 +93,14 @@ def count_users(
 def list_users(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    q: Optional[str] = Query(None, description="关键词：工号/用户名/姓名/科室，模糊匹配"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role("device_admin", "sys_admin")),
 ):
-    """分页返回用户列表（用户名、姓名、角色、科室、创建时间）。"""
+    """分页返回用户列表；支持 q 关键词模糊检索（工号/用户名、姓名、科室）。"""
+    query = _user_filter_query(db, q)
     rows = (
-        db.query(models.User)
+        query
         .order_by(models.User.id.desc())
         .offset(offset)
         .limit(limit)
