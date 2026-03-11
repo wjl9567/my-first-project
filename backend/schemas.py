@@ -175,6 +175,8 @@ class UsageRecordRead(UsageRecordBase):
     user_name: Optional[str] = None  # 登记人姓名（users.real_name）
     wecom_userid: Optional[str] = None  # 企业微信 userid，便于与企微通讯录对照
     device_name: Optional[str] = None
+    device_dept: Optional[str] = None  # 设备科室（devices.dept）
+    user_dept: Optional[str] = None  # 登记人科室（users.dept）
     created_at: datetime
     is_deleted: bool = False
     returned_at: Optional[datetime] = None

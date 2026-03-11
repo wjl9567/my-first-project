@@ -621,7 +621,7 @@
       /* 行边框与悬停高亮 */
       #table-usage tbody tr { border-bottom: 1px solid #EEEEEE; }
       #table-usage tbody tr:hover td { background: #F5F7FA !important; }
-      /* 固定左侧四列：登记日期、实际登记时间、设备、类型 */
+      /* 固定左侧四列：登记日期、实际登记时间、设备、设备科室 */
       #table-usage th:nth-child(1), #table-usage th:nth-child(2), #table-usage th:nth-child(3), #table-usage th:nth-child(4) { position: sticky; z-index: 3; background: var(--primary-bg); box-shadow: 2px 0 4px rgba(0,0,0,0.04); }
       #table-usage th:nth-child(1) { left: 0; }
       #table-usage th:nth-child(2) { left: 90px; }
@@ -1000,7 +1000,7 @@
               <div class="usage-table-wrap" id="usage-table-wrap" role="region" aria-label="使用记录表格，可左右滑动查看全部列">
                 <table id="table-usage" class="resizable-cols">
                   <thead>
-                    <tr id="usage-thead-row"><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>登记人</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
+                    <tr id="usage-thead-row"><th>登记日期</th><th>实际登记时间</th><th>设备</th><th>设备科室</th><th>床号</th><th>ID号</th><th>姓名</th><th>开机</th><th>关机</th><th>登记人</th><th>登记科室</th><th>类型</th><th>设备状况</th><th>日常保养</th><th>终末消毒</th><th>备注</th></tr>
                   </thead>
                   <tbody id="usage-list"></tbody>
                 </table>
@@ -2242,22 +2242,24 @@
           { label: "登记日期", required: true },
           { label: "实际登记时间", required: true },
           { label: "设备", required: true },
+          { label: "设备科室", required: false },
           { label: "床号", required: false },
           { label: "ID号", required: false },
           { label: "姓名", required: false },
           { label: "开机", required: false },
           { label: "关机", required: false },
           { label: "登记人", required: false },
+          { label: "登记科室", required: false },
           { label: "类型", required: true },
           { label: "设备状况", required: false },
           { label: "日常保养", required: false },
           { label: "终末消毒", required: false },
           { label: "备注", required: false }
         ];
-        var REQUIRED_INDICES = [0, 1, 2, 9];
-        var MIDDLE_INDICES = [6, 7, 8];
-        var OPTIONAL_INDICES = [10, 11, 12, 13];
-        var OPTIONAL_FILL_LAST_INDICES = [3, 4, 5];
+        var REQUIRED_INDICES = [0, 1, 2, 11];
+        var MIDDLE_INDICES = [7, 8, 9, 10];
+        var OPTIONAL_INDICES = [12, 13, 14, 15];
+        var OPTIONAL_FILL_LAST_INDICES = [3, 4, 5, 6];
         function cellVal(title, text) {
           var t = text == null || text === undefined ? EMPTY : (String(text).trim() === "" ? EMPTY : String(text));
           var tit = title != null && title !== undefined && String(title).trim() !== "" ? String(title) : t;
@@ -2273,10 +2275,13 @@
         data.forEach(r => {
           var deviceCol = (r.device_name ? r.device_name + "（" + (r.device_code ?? "") + "）" : (r.device_code ?? ""));
           var createdStr = r.created_at ? new Date(r.created_at).toLocaleString() : EMPTY;
+          var deviceDept = (r.device_dept != null && r.device_dept !== "") ? r.device_dept : EMPTY;
+          var userDept = (r.user_dept != null && r.user_dept !== "") ? r.user_dept : EMPTY;
           rowsCells.push([
             cellVal(r.registration_date ? (typeof r.registration_date === "string" ? r.registration_date : new Date(r.registration_date).toISOString().slice(0, 10)) : null, regDateStr(r)),
             cellVal(r.created_at ? new Date(r.created_at).toLocaleString() : null, createdStr),
             cellVal(deviceCol, deviceCol || EMPTY),
+            cellVal(r.device_dept, deviceDept),
             cellVal(r.bed_number, r.bed_number),
             cellVal(r.id_number, r.id_number),
             cellVal(r.patient_name, r.patient_name),
@@ -2286,6 +2291,7 @@
               (r.user_name || r.user_id) + (r.wecom_userid ? " · " + r.wecom_userid : ""),
               r.user_name ?? r.user_id ?? null
             ),
+            cellVal(r.user_dept, userDept),
             cellVal(usageTypeLabel(r.usage_type), usageTypeLabel(r.usage_type)),
             cellVal(eqCondStr(r.equipment_condition), eqCondStr(r.equipment_condition)),
             cellVal(dailyStr(r.daily_maintenance), dailyStr(r.daily_maintenance)),
